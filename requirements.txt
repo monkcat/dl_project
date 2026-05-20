@@ -1,0 +1,41 @@
+# Core
+torch>=2.1.0
+numpy>=1.24
+scipy>=1.11
+pandas>=2.0
+
+# PDF parsing
+# MinerU: install via official guide (https://github.com/opendatalab/MinerU)
+# magic-pdf  # uncomment after MinerU installation guide is followed
+
+# Embedding & encoders
+transformers>=4.40
+sentence-transformers>=2.7
+open_clip_torch>=2.24
+timm>=0.9
+pillow>=10.0
+
+# Retrieval
+rank_bm25>=0.2.2
+networkx>=3.2
+
+# Generation API clients
+anthropic>=0.30
+openai>=1.30
+google-generativeai>=0.5
+
+# Local VLM (optional)
+# vllm>=0.4
+# accelerate>=0.30
+# peft>=0.10  # for LoRA in C3
+
+# Eval
+datasets>=2.18
+huggingface_hub>=0.22
+tqdm>=4.66
+matplotlib>=3.8
+
+# Dev
+pytest>=8.0
+ruff>=0.4
+ipython>=8.20
