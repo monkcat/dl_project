@@ -205,14 +205,13 @@ for edge in ("caption_of", "refer_to", "contains"):
     ROW_CONFIGS[rid] = _h_with(rid, f"(h) with only edges of type '{edge}' in GRCL",
                                 edge_types_only=edge)
 
-# Token count per visual (default = 196 = full patches for 224×224)
-# NOTE: deferred — would require custom patch-pooling in element_encoder.forward_vision.
-# Currently runs with default 196 tokens (no effect on results). Left here as a stub
-# so the row id exists for the eventual sub-ablation.
-# for ntok in (16, 64):
-#     rid = f"tokens_{ntok:03d}"
-#     ROW_CONFIGS[rid] = _h_with(rid, f"(h) with {ntok} tokens per visual element",
-#                                 tokens_per_visual=ntok)
+# Token count per visual (default = 196 = full patches for 224×224).
+# Implemented via 2D adaptive avg-pool on the patch grid in forward_vision.
+# 14×14 → 8×8 (64) → 4×4 (16). Larger grids (CLIP 16×16=256) also handled.
+for ntok in (16, 64):
+    rid = f"tokens_{ntok:03d}"
+    ROW_CONFIGS[rid] = _h_with(rid, f"(h) with {ntok} tokens per visual element",
+                                tokens_per_visual=ntok)
 
 
 # ───── Inference-time evaluation variants ─────
@@ -276,7 +275,7 @@ TIER3_ROWS = (
     + [f"cons_{int(l*10):02d}" for l in (0.0, 0.1, 0.3, 1.0)]
     + [f"lora_r{r}" for r in (4, 16, 32)]
     + [f"edge_{e}" for e in ("caption_of", "refer_to", "contains")]
-    # tokens_per_visual ablation deferred (needs patch-pool in element_encoder)
+    + [f"tokens_{n:03d}" for n in (16, 64)]
 )
 
 

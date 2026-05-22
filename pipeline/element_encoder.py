@@ -26,6 +26,7 @@ Use:
 """
 from __future__ import annotations
 
+import math
 from typing import Optional
 
 import torch
@@ -61,6 +62,8 @@ class ElementTokenEncoder(nn.Module):
         max_text_len: int = 64,
         device: str = "cuda",
         gpe_active_facets: tuple[str, ...] = ("type", "role", "depth", "pos"),
+        tokens_per_visual: int | None = None,
+        lora_target_modules: tuple[str, ...] = ("q_proj", "k_proj", "v_proj", "out_proj"),
     ):
         super().__init__()
         from transformers import AutoModel, AutoProcessor
@@ -68,7 +71,16 @@ class ElementTokenEncoder(nn.Module):
         print(f"[ElementTokenEncoder] loading {hf_id}")
         self.processor = AutoProcessor.from_pretrained(hf_id)
         base = AutoModel.from_pretrained(hf_id, torch_dtype=torch.float32)
-        d_hidden = base.config.text_config.hidden_size
+
+        # Detect per-tower hidden dims (CLIP has d_text=768 ≠ d_vision=1024;
+        # SigLIP has them equal). Use d_text as the canonical GPE dim and add
+        # a (d_text → d_vision) adapter for the vision GPE path when they differ.
+        d_text = base.config.text_config.hidden_size
+        d_vision = getattr(base.config, "vision_config", base.config).hidden_size
+        # Whether the vision encoder prepends a CLS token (CLIP yes, SigLIP no).
+        # Heuristic: model_type contains "clip" but not "siglip".
+        mt = (getattr(base.config, "model_type", "") or "").lower()
+        self.vision_has_cls = ("clip" in mt) and ("siglip" not in mt)
 
         # Apply LoRA to attention projections of both text and vision towers
         if use_lora and PEFT_AVAILABLE:
@@ -76,31 +88,43 @@ class ElementTokenEncoder(nn.Module):
                 r=lora_rank,
                 lora_alpha=lora_alpha,
                 lora_dropout=lora_dropout,
-                target_modules=["q_proj", "k_proj", "v_proj", "out_proj"],
+                target_modules=list(lora_target_modules),
                 bias="none",
             )
             base = get_peft_model(base, lora_cfg)
-            print(f"[ElementTokenEncoder] LoRA r={lora_rank} α={lora_alpha} applied")
+            print(f"[ElementTokenEncoder] LoRA r={lora_rank} α={lora_alpha} "
+                  f"targets={list(lora_target_modules)} applied "
+                  f"(d_text={d_text}, d_vision={d_vision}, cls={self.vision_has_cls})")
             base.print_trainable_parameters()
         elif use_lora and not PEFT_AVAILABLE:
             print("[ElementTokenEncoder] WARNING: peft unavailable, training base in full")
 
         self.base = base
-        self.d_hidden = d_hidden
+        self.d_text = d_text
+        self.d_vision = d_vision
+        self.d_hidden = d_text                   # legacy alias (rest of code uses GPE dim)
         self.proj_dim = proj_dim
         self.max_text_len = max_text_len
+        self.tokens_per_visual = tokens_per_visual  # None = use raw patches
 
-        # GPE module (operates on D_hidden, before projection)
-        self.gpe = GraphPositionEmbedding(d_model=d_hidden, active_facets=gpe_active_facets)
+        # GPE module (operates on d_text). For CLIP-style models with
+        # d_vision != d_text, we add a small adapter so the same GPE vector
+        # can be added to vision tokens.
+        self.gpe = GraphPositionEmbedding(d_model=d_text, active_facets=gpe_active_facets)
+        if d_vision != d_text:
+            self.gpe_to_vision = nn.Linear(d_text, d_vision, bias=False)
+            nn.init.zeros_(self.gpe_to_vision.weight)
+        else:
+            self.gpe_to_vision = None
         # β gate for GPE × token combination (sigmoid-bounded, init small)
         self.raw_beta = nn.Parameter(torch.tensor(beta_init_raw))
 
-        # LayerNorm + projection (D_hidden → D_proj). Separate text/vision heads
-        # so each modality can specialize during retrieval-FT (cheap; 128k params each).
-        self.ln_text = nn.LayerNorm(d_hidden)
-        self.ln_vision = nn.LayerNorm(d_hidden)
-        self.proj_text = nn.Linear(d_hidden, proj_dim)
-        self.proj_vision = nn.Linear(d_hidden, proj_dim)
+        # LayerNorm + projection per modality. d_text → proj for text;
+        # d_vision → proj for vision. Identical when d_text == d_vision (SigLIP).
+        self.ln_text = nn.LayerNorm(d_text)
+        self.ln_vision = nn.LayerNorm(d_vision)
+        self.proj_text = nn.Linear(d_text, proj_dim)
+        self.proj_vision = nn.Linear(d_vision, proj_dim)
         nn.init.xavier_uniform_(self.proj_text.weight)
         nn.init.zeros_(self.proj_text.bias)
         nn.init.xavier_uniform_(self.proj_vision.weight)
@@ -157,10 +181,15 @@ class ElementTokenEncoder(nn.Module):
 
     def _add_gpe(
         self,
-        tokens: torch.Tensor,                          # (B, K, D_hidden)
+        tokens: torch.Tensor,                          # (B, K, D)
         gpe_features: Optional[dict[str, torch.Tensor]],
+        modality: str = "text",                        # "text" or "vision"
     ) -> torch.Tensor:
-        """Add β · gpe(v) to all tokens (broadcast over K). Returns same shape."""
+        """Add β · gpe(v) to all tokens (broadcast over K). Returns same shape.
+
+        For vision tokens with d_vision != d_text (CLIP-L), GPE is projected
+        through `gpe_to_vision` before being added.
+        """
         if gpe_features is None:
             return tokens
         gpe_vec = self.gpe(
@@ -168,7 +197,9 @@ class ElementTokenEncoder(nn.Module):
             gpe_features["role_ids"].to(tokens.device),
             gpe_features["depth"].to(tokens.device),
             gpe_features["intra_pos"].to(tokens.device),
-        )  # (B, D_hidden)
+        )  # (B, d_text)
+        if modality == "vision" and self.gpe_to_vision is not None:
+            gpe_vec = self.gpe_to_vision(gpe_vec)      # (B, d_vision)
         return tokens + self.beta * gpe_vec.unsqueeze(1)
 
     def forward_text(
@@ -185,8 +216,8 @@ class ElementTokenEncoder(nn.Module):
         """
         m = self._maybe_unwrap()
         out = m.text_model(input_ids=input_ids, attention_mask=attention_mask)
-        h = out.last_hidden_state                       # (B, T, D_hidden)
-        h = self._add_gpe(h, gpe_features)
+        h = out.last_hidden_state                       # (B, T, d_text)
+        h = self._add_gpe(h, gpe_features, modality="text")
         h = self.ln_text(h)
         z = self.proj_text(h)                           # (B, T, D_proj)
         z = F.normalize(z, dim=-1)
@@ -197,16 +228,35 @@ class ElementTokenEncoder(nn.Module):
         pixel_values: torch.Tensor,                    # (B, C, H, W)
         gpe_features: Optional[dict[str, torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Encode a batch of images to (B, K_patches, D_proj) tokens + ones mask.
+        """Encode a batch of images to (B, K, D_proj) tokens + ones mask.
+
+        If `tokens_per_visual` is set and < K_raw, applies 2D adaptive avg-pool
+        on the patch grid to reduce token count (e.g., 196 → 64 → 16).
 
         Returns:
-            tokens: (B, K, D_proj), L2-normalized
-            mask:   (B, K) long, all ones (no padding for fixed patches)
+            tokens: (B, K_out, D_proj), L2-normalized
+            mask:   (B, K_out) long, all ones
         """
         m = self._maybe_unwrap()
         out = m.vision_model(pixel_values=pixel_values)
-        h = out.last_hidden_state                       # (B, K_patches, D_hidden)
-        h = self._add_gpe(h, gpe_features)
+        h = out.last_hidden_state                       # (B, K_raw, D_vision)
+
+        # CLIP prepends a CLS token at index 0 — drop it so we keep only patches.
+        if self.vision_has_cls:
+            h = h[:, 1:, :]                             # (B, K_patches, D_vision)
+
+        # Optional patch pooling: reshape K_patches → (H, W) grid and adaptive-pool.
+        K_patches = h.shape[1]
+        if self.tokens_per_visual is not None and self.tokens_per_visual < K_patches:
+            side = int(round(math.sqrt(K_patches)))
+            target_side = int(round(math.sqrt(self.tokens_per_visual)))
+            if side * side == K_patches and target_side * target_side == self.tokens_per_visual:
+                B, _, D = h.shape
+                grid = h.transpose(1, 2).reshape(B, D, side, side)              # (B, D, H, W)
+                pooled = F.adaptive_avg_pool2d(grid, (target_side, target_side)) # (B, D, h, w)
+                h = pooled.reshape(B, D, -1).transpose(1, 2)                    # (B, K_out, D)
+
+        h = self._add_gpe(h, gpe_features, modality="vision")
         h = self.ln_vision(h)
         z = self.proj_vision(h)                         # (B, K, D_proj)
         z = F.normalize(z, dim=-1)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Launch full ablation suite on 2× A100.
 #
-# Total training runs: 28 trained rows + 1 GME zero-shot = 29 rows.
+# Total training runs: 30 trained rows + 1 GME zero-shot = 31 rows.
 # Tier 1 — Main ablation:     a, b, c, d, e, f, g, h, gme       (REPORT_KR §6.3)
 # Tier 2 — Negative controls: m, n, o, p                        (REPORT_KR §6.4)
 # Tier 3 — Sub-ablations:     γ×2, λ_cov×4, λ_cons×4, lora×3,
@@ -80,7 +80,8 @@ elif [ "$TIER" = "3" ]; then
               cov_00 cov_01 cov_05 cov_10
               cons_00 cons_01 cons_03 cons_10
               lora_r4 lora_r16 lora_r32
-              edge_caption_of edge_refer_to edge_contains)
+              edge_caption_of edge_refer_to edge_contains
+              tokens_016 tokens_064)
 else
     # Full suite (default)
     ROW_LIST=(a b c d e f g h gme
@@ -89,7 +90,8 @@ else
               cov_00 cov_01 cov_05 cov_10
               cons_00 cons_01 cons_03 cons_10
               lora_r4 lora_r16 lora_r32
-              edge_caption_of edge_refer_to edge_contains)
+              edge_caption_of edge_refer_to edge_contains
+              tokens_016 tokens_064)
 fi
 
 # Skip rows already complete (summary.json exists). Use real config name (row_id_name).

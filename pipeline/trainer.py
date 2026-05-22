@@ -583,6 +583,8 @@ def main():
     ap.add_argument("--section_role_mode", type=str, default="normal",
                     choices=("normal", "shuffled", "random"),
                     help="negative controls (m, n) — re-assign section_role at load time")
+    ap.add_argument("--tokens_per_visual", type=int, default=0,
+                    help="patch-pool visual tokens to this count (16, 64). 0 = no pool (full ~196)")
     args = ap.parse_args()
 
     # If --config provided, override args from preset (CLI args still take precedence
@@ -599,7 +601,7 @@ def main():
                    "eval_every", "eval_cf_pairs", "eval_recall_n",
                    "anchor_kind", "seed", "gamma", "gpe_facets", "hf_id",
                    "edge_types_only", "query_pe_dropout", "section_role_mode",
-                   "infonce_threshold"):
+                   "infonce_threshold", "tokens_per_visual"):
             if k in cfg:
                 setattr(args, k, cfg[k])
         # use_gpe stored as bool in config, but argparse uses int
@@ -647,6 +649,8 @@ def main():
         enc_kwargs["hf_id"] = args.hf_id
     if hasattr(args, "gpe_facets") and args.gpe_facets:
         enc_kwargs["gpe_active_facets"] = tuple(args.gpe_facets.split(","))
+    if hasattr(args, "tokens_per_visual") and args.tokens_per_visual:
+        enc_kwargs["tokens_per_visual"] = args.tokens_per_visual
     encoder = ElementTokenEncoder(**enc_kwargs)
     trainable = [p for p in encoder.parameters() if p.requires_grad]
     optim = torch.optim.AdamW(trainable, lr=args.lr, weight_decay=0.01)

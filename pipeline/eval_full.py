@@ -99,6 +99,7 @@ def load_queries(cfg: dict) -> list[dict]:
 
 def load_encoder(args) -> ElementTokenEncoder:
     facets = tuple(args.gpe_facets.split(",")) if getattr(args, "gpe_facets", None) else ("type", "role", "depth", "pos")
+    tpv = getattr(args, "tokens_per_visual", 0) or None
     enc = ElementTokenEncoder(
         hf_id=args.hf_id,
         proj_dim=args.proj_dim,
@@ -107,6 +108,7 @@ def load_encoder(args) -> ElementTokenEncoder:
         lora_alpha=getattr(args, "lora_alpha", 16),
         device=args.device,
         gpe_active_facets=facets,
+        tokens_per_visual=tpv,
     )
     if args.ckpt:
         state = torch.load(args.ckpt, map_location=args.device)
@@ -369,6 +371,8 @@ def main():
     ap.add_argument("--lora_alpha", type=int, default=16)
     ap.add_argument("--gpe_facets", type=str, default="type,role,depth,pos",
                     help="match training-time gpe_facets to load checkpoint correctly")
+    ap.add_argument("--tokens_per_visual", type=int, default=0,
+                    help="must match training-time value (e.g., 16 or 64) to load checkpoint correctly")
     ap.add_argument("--datasets", nargs="+", default=list(EVAL_DATASETS.keys()),
                     choices=list(EVAL_DATASETS.keys()))
     ap.add_argument("--variants", nargs="+", default=list(INFERENCE_VARIANTS.keys()),

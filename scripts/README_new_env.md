@@ -90,13 +90,13 @@ mmdocir:         75 docs
 ### 6. 실험 실행
 
 ```bash
-# 전체 (Tier 1+2+3, 29 rows ≈ 84h on 2× A100)
+# 전체 (Tier 1+2+3, 31 rows ≈ 90h on 2× A100)
 bash scripts/run_all_experiments.sh
 
 # 또는 단계별
 bash scripts/run_all_experiments.sh --tier 1     # Tier 1만 (9 rows, ~27h)
 bash scripts/run_all_experiments.sh --tier 2     # Negative controls (4 rows, ~12h)
-bash scripts/run_all_experiments.sh --tier 3     # Sub-ablations (16 rows, ~48h)
+bash scripts/run_all_experiments.sh --tier 3     # Sub-ablations (18 rows, ~54h)
 
 # 또는 특정 rows만
 bash scripts/run_all_experiments.sh --rows a,h,gme
@@ -111,7 +111,7 @@ bash scripts/run_all_experiments.sh --dry_run
 |---|---|---|
 | **1 — Main** | a, b, c, d, e, f, g, h, gme | InfoNCE / GRCL × GPE facet 조합 + GME reference |
 | **2 — Negative controls** | m, n, o, p | section_role shuffle/random, no query PE dropout, encoder swap CLIP-L/14 |
-| **3 — Sub-ablations** | γ×2, λ_cov×4, λ_cons×4, lora×3, edge×3 | (h)를 base로 한 hyperparameter sweep |
+| **3 — Sub-ablations** | γ×2, λ_cov×4, λ_cons×4, lora×3, edge×3, tokens×2 | (h)를 base로 한 hyperparameter sweep |
 
 **자동 처리**:
 - Wave마다 GPU 0 + GPU 1 병렬 (총 15 wave)

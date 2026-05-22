@@ -31,6 +31,7 @@ TIER3_ROWS = (
     + [f"cons_{int(l*10):02d}" for l in (0.0, 0.1, 0.3, 1.0)]
     + [f"lora_r{r}" for r in (4, 16, 32)]
     + [f"edge_{e}" for e in ("caption_of", "refer_to", "contains")]
+    + [f"tokens_{n:03d}" for n in (16, 64)]
 )
 
 ROW_LABEL = {
@@ -177,6 +178,8 @@ def render_summary(results: dict) -> str:
          ["lora_r4", "h", "lora_r16", "lora_r32"]),
         ("Edge type isolation",
          ["edge_caption_of", "edge_refer_to", "edge_contains", "h"]),
+        ("Token count per visual element",
+         ["tokens_016", "tokens_064", "h"]),
     ]:
         lines.append(f"### {label}")
         lines.append("")

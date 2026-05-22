@@ -97,6 +97,8 @@ def main():
     cmd += ["--hf_id", cfg.get("hf_id", "google/siglip2-base-patch16-224")]
     if cfg.get("gpe_facets"):
         cmd += ["--gpe_facets", cfg["gpe_facets"]]
+    if cfg.get("tokens_per_visual"):
+        cmd += ["--tokens_per_visual", str(cfg["tokens_per_visual"])]
     if args.max_queries:
         cmd += ["--max_queries", str(args.max_queries)]
 
