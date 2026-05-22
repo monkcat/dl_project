@@ -24,13 +24,19 @@ cd "$REPO"
 
 mkdir -p logs ckpt eval/results/experiments
 
-# Detect conda env. If running in a non-activated shell, prefer the dl_hw2 env.
-if [ -z "${CONDA_DEFAULT_ENV:-}" ] || [ "${CONDA_DEFAULT_ENV}" != "dl_hw2" ]; then
-    echo "[INFO] Activating conda env: dl_hw2"
-    # shellcheck disable=SC1091
-    source "$(conda info --base)/etc/profile.d/conda.sh"
-    conda activate dl_hw2
+# Optional: activate conda env if conda is available and not already in dl_hw2.
+# Skip silently if conda is not installed (venv/system python is fine).
+if command -v conda >/dev/null 2>&1; then
+    if [ -z "${CONDA_DEFAULT_ENV:-}" ] || [ "${CONDA_DEFAULT_ENV}" != "dl_hw2" ]; then
+        if conda env list | grep -q "^dl_hw2 "; then
+            echo "[INFO] Activating conda env: dl_hw2"
+            # shellcheck disable=SC1091
+            source "$(conda info --base)/etc/profile.d/conda.sh"
+            conda activate dl_hw2
+        fi
+    fi
 fi
+echo "[INFO] Using python: $(which python)"
 
 # Sanity: required files exist
 for f in \

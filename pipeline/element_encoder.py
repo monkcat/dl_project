@@ -352,7 +352,7 @@ if __name__ == "__main__":
     print("\n=== vision forward ===")
     try:
         # Find a real figure
-        img_root = Path("/home/jaehyeon/dl_project/data/benchmarks/spiqa/test-A/images_224px/SPIQA_testA_Images_224px")
+        img_root = Path(__file__).resolve().parent.parent / "data/benchmarks/spiqa/test-A/images_224px/SPIQA_testA_Images_224px"
         sample_pid = next(p for p in img_root.iterdir() if p.is_dir())
         sample_img = next(sample_pid.glob("*.png"))
         img = Image.open(sample_img).convert("RGB")

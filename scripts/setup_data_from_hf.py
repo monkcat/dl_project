@@ -161,9 +161,44 @@ def download_spiqa(target: Path, skip_train: bool = False):
 
 
 def extract_zips(target: Path):
-    """Unzip downloaded archives in place."""
+    """Unzip downloaded SPIQA archives into the layout the trainer/eval expect.
+
+    The zip top-level is `SPIQA_*_Images/`, but the trainer expects a wrapper
+    directory above that (`images/` for train, `images_224px/` for test-A).
+    We hardcode the destinations so the resulting layout matches:
+
+        test-A/images_224px/SPIQA_testA_Images_224px/<paper_id>/*.png
+        train_val/images/SPIQA_train_val_Images/<paper_id>/*.png
+
+    Other zips (paragraphs etc.) are extracted in-place next to the archive.
+    """
     import zipfile
+
+    # SPIQA images: explicit destinations
+    spiqa_image_zips = {
+        target / "test-A/SPIQA_testA_Images_224px.zip":
+            target / "test-A/images_224px",
+        target / "train_val/SPIQA_train_val_Images.zip":
+            target / "train_val/images",
+    }
+    for zp, dest in spiqa_image_zips.items():
+        if not zp.exists():
+            continue
+        # If wrapper/<top> already populated, skip
+        marker = dest / zp.stem  # e.g. images_224px/SPIQA_testA_Images_224px
+        if marker.exists() and any(marker.iterdir()):
+            print(f"  (already extracted: {marker.relative_to(target)})")
+            continue
+        print(f"  unzip {zp.name} → {dest.relative_to(target)}/")
+        dest.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(zp) as z:
+            z.extractall(dest)
+        print(f"    ✓")
+
+    # Anything else: extract next to the archive (skip if already done)
     for zp in target.rglob("*.zip"):
+        if zp in spiqa_image_zips:
+            continue
         out_dir = zp.parent / zp.stem
         if out_dir.exists():
             print(f"  (already extracted: {out_dir.name})")
@@ -171,16 +206,18 @@ def extract_zips(target: Path):
         print(f"  unzip {zp.name}...")
         out_dir.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(zp) as z:
-            z.extractall(out_dir.parent)
+            z.extractall(zp.parent)
         print(f"    ✓")
 
 
 def download_sciegqa(target: Path, repo_id: str | None):
-    """Download SciEGQA. Path depends on dataset host — user must specify."""
+    """Download SciEGQA from HF and extract PDF.tar / Images.tar.
+
+    Default repo: Yuwh07/SciEGQA-Bench (contains SciEGQA_Bench.jsonl,
+    PDF.tar ~132 MB, Images.tar ~1.13 GB).
+    """
     if repo_id is None:
-        print(f"[3/4] SciEGQA: skipped (no --sciegqa_repo specified)")
-        print(f"      get from: ai-secure/SciEGQA-Bench or copy from existing env")
-        return
+        repo_id = "Yuwh07/SciEGQA-Bench"
     from huggingface_hub import snapshot_download
     print(f"[3/4] SciEGQA from {repo_id} → {target}")
     target.mkdir(parents=True, exist_ok=True)
@@ -188,7 +225,21 @@ def download_sciegqa(target: Path, repo_id: str | None):
         repo_id=repo_id, repo_type="dataset",
         local_dir=str(target), local_dir_use_symlinks=False,
     )
-    print(f"  ✓")
+    # extract PDF.tar / Images.tar in place
+    import tarfile
+    for tar_name in ("PDF.tar", "Images.tar"):
+        tp = target / tar_name
+        if not tp.exists():
+            continue
+        out_dir = target / tp.stem  # PDF/ or Images/
+        if out_dir.exists() and any(out_dir.iterdir()):
+            print(f"  (already extracted: {tar_name})")
+            continue
+        print(f"  extracting {tar_name}...")
+        with tarfile.open(tp) as t:
+            t.extractall(target)
+        print(f"    ✓")
+    print(f"  ✓ done")
 
 
 def download_mmdocir(target: Path):
