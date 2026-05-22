@@ -80,4 +80,3 @@ eval/results/                   (not tracked — runtime outputs)
 ```
 
 ## Citation
-TBD (DL project, KAIST 2026)
