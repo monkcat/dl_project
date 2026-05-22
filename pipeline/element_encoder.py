@@ -60,6 +60,7 @@ class ElementTokenEncoder(nn.Module):
         beta_init_raw: float = -3.0,
         max_text_len: int = 64,
         device: str = "cuda",
+        gpe_active_facets: tuple[str, ...] = ("type", "role", "depth", "pos"),
     ):
         super().__init__()
         from transformers import AutoModel, AutoProcessor
@@ -90,7 +91,7 @@ class ElementTokenEncoder(nn.Module):
         self.max_text_len = max_text_len
 
         # GPE module (operates on D_hidden, before projection)
-        self.gpe = GraphPositionEmbedding(d_model=d_hidden)
+        self.gpe = GraphPositionEmbedding(d_model=d_hidden, active_facets=gpe_active_facets)
         # β gate for GPE × token combination (sigmoid-bounded, init small)
         self.raw_beta = nn.Parameter(torch.tensor(beta_init_raw))
 

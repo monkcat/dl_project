@@ -93,7 +93,10 @@ def main():
     if not cfg.get("skip_training", False) and Path(ckpt_path).exists():
         cmd += ["--ckpt", ckpt_path]
     cmd += ["--lora_rank", str(cfg.get("lora_rank", 8))]
+    cmd += ["--lora_alpha", str(cfg.get("lora_alpha", 16))]
     cmd += ["--hf_id", cfg.get("hf_id", "google/siglip2-base-patch16-224")]
+    if cfg.get("gpe_facets"):
+        cmd += ["--gpe_facets", cfg["gpe_facets"]]
     if args.max_queries:
         cmd += ["--max_queries", str(args.max_queries)]
 

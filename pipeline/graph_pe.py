@@ -72,9 +72,19 @@ class GraphPositionEmbedding(nn.Module):
     → sigmoid(-3) ≈ 0.047 (gentle PE contribution at start).
     """
 
-    def __init__(self, d_model: int, alpha_init_raw: float = -3.0):
+    def __init__(
+        self,
+        d_model: int,
+        alpha_init_raw: float = -3.0,
+        active_facets: tuple[str, ...] = ("type", "role", "depth", "pos"),
+    ):
         super().__init__()
         self.d_model = d_model
+        valid = {"type", "role", "depth", "pos"}
+        for f in active_facets:
+            if f not in valid:
+                raise ValueError(f"unknown facet: {f}; valid: {valid}")
+        self.active_facets = set(active_facets)
 
         # Learned embeddings
         self.type_emb = nn.Embedding(len(ELEMENT_TYPES), d_model)
@@ -82,11 +92,18 @@ class GraphPositionEmbedding(nn.Module):
         nn.init.normal_(self.type_emb.weight, mean=0.0, std=0.02)
         nn.init.normal_(self.role_emb.weight, mean=0.0, std=0.02)
 
-        # Per-facet learnable gates (raw values, sigmoid-bounded)
-        self.raw_alpha_type = nn.Parameter(torch.tensor(alpha_init_raw))
-        self.raw_alpha_role = nn.Parameter(torch.tensor(alpha_init_raw))
-        self.raw_alpha_depth = nn.Parameter(torch.tensor(alpha_init_raw))
-        self.raw_alpha_pos = nn.Parameter(torch.tensor(alpha_init_raw))
+        # Per-facet learnable gates (raw values, sigmoid-bounded).
+        # Inactive facets stay at a large-negative raw value with grad disabled
+        # so their sigmoid gate is ~0 and they contribute nothing.
+        def make_gate(active: bool) -> nn.Parameter:
+            init = alpha_init_raw if active else -10.0  # σ(-10) ≈ 4.5e-5
+            p = nn.Parameter(torch.tensor(init), requires_grad=active)
+            return p
+
+        self.raw_alpha_type = make_gate("type" in self.active_facets)
+        self.raw_alpha_role = make_gate("role" in self.active_facets)
+        self.raw_alpha_depth = make_gate("depth" in self.active_facets)
+        self.raw_alpha_pos = make_gate("pos" in self.active_facets)
 
     @property
     def alphas(self) -> dict[str, float]:

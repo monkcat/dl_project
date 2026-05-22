@@ -90,13 +90,34 @@ mmdocir:         75 docs
 ### 6. 실험 실행
 
 ```bash
+# 전체 (Tier 1+2+3, 29 rows ≈ 84h on 2× A100)
 bash scripts/run_all_experiments.sh
+
+# 또는 단계별
+bash scripts/run_all_experiments.sh --tier 1     # Tier 1만 (9 rows, ~27h)
+bash scripts/run_all_experiments.sh --tier 2     # Negative controls (4 rows, ~12h)
+bash scripts/run_all_experiments.sh --tier 3     # Sub-ablations (16 rows, ~48h)
+
+# 또는 특정 rows만
+bash scripts/run_all_experiments.sh --rows a,h,gme
+
+# 무엇이 돌아갈지만 확인 (실제 학습 X)
+bash scripts/run_all_experiments.sh --dry_run
 ```
 
-자동으로 도는 것 (~12–14 시간):
-- **Wave 1** (~6h): GPU 0 = (a) baseline, GPU 1 = (e) GRCL
-- **Wave 2** (~6h): GPU 0 = (f) GPE, GPU 1 = (h) full
-- **Wave 3** (~1h): (gme) zero-shot reference
+**실험 행 구성** (REPORT_KR §6.3–6.5):
+
+| Tier | Rows | 설명 |
+|---|---|---|
+| **1 — Main** | a, b, c, d, e, f, g, h, gme | InfoNCE / GRCL × GPE facet 조합 + GME reference |
+| **2 — Negative controls** | m, n, o, p | section_role shuffle/random, no query PE dropout, encoder swap CLIP-L/14 |
+| **3 — Sub-ablations** | γ×2, λ_cov×4, λ_cons×4, lora×3, edge×3 | (h)를 base로 한 hyperparameter sweep |
+
+**자동 처리**:
+- Wave마다 GPU 0 + GPU 1 병렬 (총 15 wave)
+- 각 row 끝나면 `eval/results/experiments/<row>_<name>/summary.json` 생성
+- 이미 완료된 row는 자동 skip (중단 후 재실행 안전)
+- 끝나면 (h) 체크포인트로 propagation α/T sweep eval-only 5 variant 추가 실행
 - 자동 aggregate → `eval/results/experiments/SUMMARY.md`
 
 > conda가 없으면 그냥 현재 활성화된 python으로 실행 (스크립트가 conda 존재 여부 자동 감지).

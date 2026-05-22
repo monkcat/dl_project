@@ -75,6 +75,7 @@ def graph_relevance(
     gamma: float = 0.5,
     max_hops: int = 2,
     neighbor_index: Optional[dict[str, list[tuple[str, ElementEdge]]]] = None,
+    edge_types_only: Optional[set[str]] = None,
 ) -> list[float]:
     """For each candidate, return max-product path weight from anchor (≤ `max_hops`).
 
@@ -114,6 +115,8 @@ def graph_relevance(
             for nbr_id, edge in neighbor_index.get(node_id, []):
                 if nbr_id == anchor_id:
                     continue  # don't bounce back to anchor
+                if edge_types_only is not None and edge["type"] not in edge_types_only:
+                    continue  # sub-ablation: keep only specific edge types
                 target_node = nodes.get(nbr_id)
                 edge_w = _edge_effective_weight(edge, target_node)
                 new_w = w_so_far * edge_w * gamma_factor

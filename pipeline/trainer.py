@@ -51,6 +51,38 @@ TESTA_IMG_ROOT = SPIQA_ROOT / "test-A/images_224px/SPIQA_testA_Images_224px"
 
 
 # ────────────────────────────────────────────────────────────────────────────
+# Negative controls — section_role rewriting at load time
+# ────────────────────────────────────────────────────────────────────────────
+
+# All valid section_role labels (must match SectionRole Literal in types.py)
+_SECTION_ROLES = ("intro", "method", "result", "discussion", "appendix",
+                  "references", "abstract", "front_matter", "related_work", "other")
+
+
+def _apply_section_role_mode(graphs: dict, mode: str, seed: int) -> None:
+    """In-place mutation of `graphs` to rewrite `section_role` per neg-control mode.
+
+    - 'shuffled': permute the multiset of section_roles within each doc (preserves
+      per-doc role marginal but breaks structure↔role correspondence)
+    - 'random':   uniform random role per node (also breaks marginal)
+    """
+    import random as _r
+    rng = _r.Random(seed)
+    for doc_id, g in graphs.items():
+        nodes = g.get("nodes", [])
+        if mode == "shuffled":
+            roles = [n.get("section_role") or "other" for n in nodes]
+            rng.shuffle(roles)
+            for n, r in zip(nodes, roles):
+                n["section_role"] = r
+        elif mode == "random":
+            for n in nodes:
+                n["section_role"] = rng.choice(_SECTION_ROLES)
+        else:
+            raise ValueError(f"unknown section_role_mode: {mode!r}")
+
+
+# ────────────────────────────────────────────────────────────────────────────
 # Dataset
 # ────────────────────────────────────────────────────────────────────────────
 
@@ -68,6 +100,8 @@ class SpiqaSplitData:
         qa_path: Path | None,
         image_root: Path,
         subset_paper_ids: set[str] | None = None,
+        section_role_mode: str = "normal",
+        role_shuffle_seed: int = 42,
     ):
         self.graph_path = graph_path
         self.elements_path = elements_path
@@ -82,6 +116,11 @@ class SpiqaSplitData:
         else:
             self.graphs = all_graphs
         print(f"    {len(self.graphs):,} papers kept")
+
+        # Negative controls (m, n): rewrite section_role at load time.
+        if section_role_mode != "normal":
+            _apply_section_role_mode(self.graphs, section_role_mode, role_shuffle_seed)
+            print(f"    section_role mode = {section_role_mode!r} applied")
 
         # Precompute per-doc neighbor indices + features
         self.neighbor_index = {pid: build_neighbor_index(g) for pid, g in self.graphs.items()}
@@ -167,9 +206,17 @@ class SpiqaSplitData:
 class TrainDataset:
     """Wraps SpiqaSplitData for SPIQA train and provides sample_anchor()."""
 
-    def __init__(self, data: SpiqaSplitData, seed: int = 0):
+    def __init__(
+        self,
+        data: SpiqaSplitData,
+        seed: int = 0,
+        gamma: float = 0.5,
+        edge_types_only: set[str] | None = None,
+    ):
         self.data = data
         self.rng = random.Random(seed)
+        self.gamma = gamma
+        self.edge_types_only = edge_types_only
 
     def _sample_caption_of(self) -> dict | None:
         if not self.data.caption_of_anchors:
@@ -246,7 +293,8 @@ class TrainDataset:
 
         relevances = graph_relevance(
             anchor_id, candidates, self.data.graphs[doc_id],
-            gamma=0.5, max_hops=2, neighbor_index=nb,
+            gamma=self.gamma, max_hops=2, neighbor_index=nb,
+            edge_types_only=self.edge_types_only,
         )
         return {
             "doc_id": doc_id,
@@ -347,6 +395,7 @@ def compute_batch_losses(
     use_gpe: bool = True,                # row toggle: include GPE in forward
     loss_type: str = "grcl",             # 'grcl' (graded) | 'infonce' (binary positives)
     infonce_threshold: float = 0.5,
+    query_pe_dropout: float = 0.5,       # neg-control (o): 0 disables L_cons teacher/student
 ) -> tuple[torch.Tensor, dict[str, float]]:
     grcl_terms, cov_terms, cons_terms = [], [], []
     cap_fig_cos = []
@@ -363,7 +412,9 @@ def compute_batch_losses(
         else:
             a_full, a_mask = encode_element(encoder, inst["anchor_id"], data,
                                              use_gpe=use_gpe, device=device)
-            if use_gpe:
+            # Compute a_drop teacher only when GPE active AND query_pe_dropout > 0.
+            # query_pe_dropout=0 (neg-control o) disables the L_cons mechanism.
+            if use_gpe and query_pe_dropout > 0:
                 a_drop, _ = encode_element(encoder, inst["anchor_id"], data,
                                              use_gpe=False, device=device)
             else:
@@ -517,6 +568,21 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", type=str, default="eval/results/trainer/run.json")
     ap.add_argument("--save_ckpt", type=str, default=None, help="if set, save state_dict here")
+    # New flags for ablation rows
+    ap.add_argument("--gamma", type=float, default=0.5,
+                    help="GRCL graph-relevance 2-hop decay (γ)")
+    ap.add_argument("--gpe_facets", type=str, default="type,role,depth,pos",
+                    help="comma list of active GPE facets (for ablation rows b,c,d)")
+    ap.add_argument("--lora_alpha", type=int, default=16)
+    ap.add_argument("--hf_id", type=str, default="google/siglip2-base-patch16-224",
+                    help="HF model id for the encoder (override for (p) CLIP-L/14 swap)")
+    ap.add_argument("--edge_types_only", type=str, default=None,
+                    help="comma list of edges to keep in graph relevance (sub-ablation)")
+    ap.add_argument("--query_pe_dropout", type=float, default=0.5,
+                    help="prob. of dropping GPE on query/anchor side during L_cons (negative control o)")
+    ap.add_argument("--section_role_mode", type=str, default="normal",
+                    choices=("normal", "shuffled", "random"),
+                    help="negative controls (m, n) — re-assign section_role at load time")
     args = ap.parse_args()
 
     # If --config provided, override args from preset (CLI args still take precedence
@@ -529,9 +595,11 @@ def main():
                 setattr(args, k, v)
         # Force-apply key training fields
         for k in ("use_gpe", "loss_type", "lambda_cov", "lambda_cons", "steps",
-                   "batch", "pool", "lr", "lora_rank", "tau", "train_sample",
+                   "batch", "pool", "lr", "lora_rank", "lora_alpha", "tau", "train_sample",
                    "eval_every", "eval_cf_pairs", "eval_recall_n",
-                   "anchor_kind", "seed"):
+                   "anchor_kind", "seed", "gamma", "gpe_facets", "hf_id",
+                   "edge_types_only", "query_pe_dropout", "section_role_mode",
+                   "infonce_threshold"):
             if k in cfg:
                 setattr(args, k, cfg[k])
         # use_gpe stored as bool in config, but argparse uses int
@@ -563,12 +631,23 @@ def main():
         print(f"  selected {len(subset_ids):,} paper ids")
     else:
         subset_ids = None
-    train_data = SpiqaSplitData(TRAIN_GRAPH, TRAIN_ELEMENTS, TRAIN_QA, TRAIN_IMG_ROOT, subset_ids)
-    train_ds = TrainDataset(train_data, seed=args.seed)
+    train_data = SpiqaSplitData(TRAIN_GRAPH, TRAIN_ELEMENTS, TRAIN_QA, TRAIN_IMG_ROOT, subset_ids,
+                                section_role_mode=args.section_role_mode,
+                                role_shuffle_seed=args.seed)
+    edge_set = set(args.edge_types_only.split(",")) if args.edge_types_only else None
+    train_ds = TrainDataset(train_data, seed=args.seed,
+                            gamma=args.gamma, edge_types_only=edge_set)
 
     # ── encoder ──
     print(f"\n[3/3] building encoder...")
-    encoder = ElementTokenEncoder(device=device, lora_rank=args.lora_rank)
+    enc_kwargs = dict(device=device, lora_rank=args.lora_rank)
+    if hasattr(args, "lora_alpha") and args.lora_alpha:
+        enc_kwargs["lora_alpha"] = args.lora_alpha
+    if hasattr(args, "hf_id") and args.hf_id:
+        enc_kwargs["hf_id"] = args.hf_id
+    if hasattr(args, "gpe_facets") and args.gpe_facets:
+        enc_kwargs["gpe_active_facets"] = tuple(args.gpe_facets.split(","))
+    encoder = ElementTokenEncoder(**enc_kwargs)
     trainable = [p for p in encoder.parameters() if p.requires_grad]
     optim = torch.optim.AdamW(trainable, lr=args.lr, weight_decay=0.01)
 
@@ -612,7 +691,8 @@ def main():
                                      lambda_cons=args.lambda_cons, device=device,
                                      use_gpe=bool(args.use_gpe),
                                      loss_type=args.loss_type,
-                                     infonce_threshold=getattr(args, "infonce_threshold", 0.5))
+                                     infonce_threshold=getattr(args, "infonce_threshold", 0.5),
+                                     query_pe_dropout=getattr(args, "query_pe_dropout", 0.5))
         optim.zero_grad()
         L.backward()
         torch.nn.utils.clip_grad_norm_(trainable, max_norm=1.0)
