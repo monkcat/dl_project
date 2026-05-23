@@ -81,7 +81,6 @@ def _base_grcl_full():
         "lambda_cons": 0.5,
     }
 
-
 # ───── ROW CONFIGS ─────
 ROW_CONFIGS: dict[str, dict] = {}
 
@@ -137,6 +136,91 @@ ROW_CONFIGS["h"] = {
     "use_gpe": True, "loss_type": "grcl",
     "lambda_cov": 0.3, "lambda_cons": 0.5,
 }
+
+# ── Hyperparameter sweep — all based on full method (h) ──
+ROW_CONFIGS["h_lr_low"] = {
+    **COMMON, "row_id": "h_lr_low", "name": "hp_lr_1e5",
+    "description": "Full method, lr=1e-5",
+    "use_gpe": True, "loss_type": "grcl", "lambda_cov": 0.3, "lambda_cons": 0.5,
+    "lr": 1e-5,
+}
+ROW_CONFIGS["h_lr_high"] = {
+    **COMMON, "row_id": "h_lr_high", "name": "hp_lr_1e4",
+    "description": "Full method, lr=1e-4",
+    "use_gpe": True, "loss_type": "grcl", "lambda_cov": 0.3, "lambda_cons": 0.5,
+    "lr": 1e-4,
+}
+ROW_CONFIGS["h_tau_low"] = {
+    **COMMON, "row_id": "h_tau_low", "name": "hp_tau_005",
+    "description": "Full method, tau=0.05",
+    "use_gpe": True, "loss_type": "grcl", "lambda_cov": 0.3, "lambda_cons": 0.5,
+    "tau": 0.05,
+}
+ROW_CONFIGS["h_tau_high"] = {
+    **COMMON, "row_id": "h_tau_high", "name": "hp_tau_010",
+    "description": "Full method, tau=0.10",
+    "use_gpe": True, "loss_type": "grcl", "lambda_cov": 0.3, "lambda_cons": 0.5,
+    "tau": 0.10,
+}
+ROW_CONFIGS["h_rank_low"] = {
+    **COMMON, "row_id": "h_rank_low", "name": "hp_lora_rank4",
+    "description": "Full method, lora_rank=4",
+    "use_gpe": True, "loss_type": "grcl", "lambda_cov": 0.3, "lambda_cons": 0.5,
+    "lora_rank": 4,
+}
+ROW_CONFIGS["h_rank_high"] = {
+    **COMMON, "row_id": "h_rank_high", "name": "hp_lora_rank16",
+    "description": "Full method, lora_rank=16",
+    "use_gpe": True, "loss_type": "grcl", "lambda_cov": 0.3, "lambda_cons": 0.5,
+    "lora_rank": 16,
+}
+ROW_CONFIGS["h_lcov_low"] = {
+    **COMMON, "row_id": "h_lcov_low", "name": "hp_lcov_01",
+    "description": "Full method, lambda_cov=0.1",
+    "use_gpe": True, "loss_type": "grcl", "lambda_cov": 0.1, "lambda_cons": 0.5,
+}
+ROW_CONFIGS["h_lcov_high"] = {
+    **COMMON, "row_id": "h_lcov_high", "name": "hp_lcov_05",
+    "description": "Full method, lambda_cov=0.5",
+    "use_gpe": True, "loss_type": "grcl", "lambda_cov": 0.5, "lambda_cons": 0.5,
+}
+ROW_CONFIGS["h_lcons_low"] = {
+    **COMMON, "row_id": "h_lcons_low", "name": "hp_lcons_01",
+    "description": "Full method, lambda_cons=0.1",
+    "use_gpe": True, "loss_type": "grcl", "lambda_cov": 0.3, "lambda_cons": 0.1,
+}
+ROW_CONFIGS["h_lcons_high"] = {
+    **COMMON, "row_id": "h_lcons_high", "name": "hp_lcons_10",
+    "description": "Full method, lambda_cons=1.0",
+    "use_gpe": True, "loss_type": "grcl", "lambda_cov": 0.3, "lambda_cons": 1.0,
+}
+
+# ── Phase 3 follow-up experiments (post HP-sweep insights) ──
+ROW_CONFIGS["h_best_combo"] = {
+    **COMMON, "row_id": "h_best_combo", "name": "best_combo",
+    "description": "Stacked HP winners: lr=1e-4 + tau=0.10 + lambda_cov=0.5",
+    "use_gpe": True, "loss_type": "grcl",
+    "lambda_cov": 0.5, "lambda_cons": 0.5,
+    "lr": 1e-4, "tau": 0.10,
+}
+ROW_CONFIGS["h_best_combo_16k"] = {
+    **COMMON, "row_id": "h_best_combo_16k", "name": "best_combo_16k",
+    "description": "Best HP combo trained for 16k steps to see plateau",
+    "use_gpe": True, "loss_type": "grcl",
+    "lambda_cov": 0.5, "lambda_cons": 0.5,
+    "lr": 1e-4, "tau": 0.10,
+    "steps": 16000, "warmup_steps": 400, "eval_every": 1000,
+}
+ROW_CONFIGS["h_gpe_strong"] = {
+    **COMMON, "row_id": "h_gpe_strong", "name": "gpe_strong_init",
+    "description": "Full method with stronger GPE init (beta_init=0, alpha_init=0; sigma~0.5)",
+    "use_gpe": True, "loss_type": "grcl",
+    "lambda_cov": 0.3, "lambda_cons": 0.5,
+    "gpe_alpha_init_raw": 0.0,
+    "beta_init_raw": 0.0,
+}
+
+# GME reference — no training, just zero-shot retrieval.
 ROW_CONFIGS["gme"] = {
     "row_id": "gme", "name": "gme_qwen2vl_zero_shot",
     "description": "GME-Qwen2-VL-2B zero-shot (no training); inference variants applied at eval time",
@@ -219,13 +303,17 @@ for ntok in (16, 64):
 # Propagation α / T sweep also exposed below for Tier 3 (eval-only, no retrain).
 INFERENCE_VARIANTS: dict[str, dict] = {
     "no_prop":          {"graph_propagate": False, "alpha": 0.0, "T": 0},
-    "prop_a03_T2":      {"graph_propagate": True,  "alpha": 0.3, "T": 2},  # default propagation
-    # Propagation sub-ablation (eval-only on (h) checkpoint)
-    "prop_a01_T2":      {"graph_propagate": True,  "alpha": 0.1, "T": 2},
-    "prop_a05_T2":      {"graph_propagate": True,  "alpha": 0.5, "T": 2},
-    "prop_a07_T2":      {"graph_propagate": True,  "alpha": 0.7, "T": 2},
-    "prop_a03_T1":      {"graph_propagate": True,  "alpha": 0.3, "T": 1},
-    "prop_a03_T3":      {"graph_propagate": True,  "alpha": 0.3, "T": 3},
+    "prop_a005_T1":     {"graph_propagate": True,  "alpha": 0.05, "T": 1},
+    "prop_a005_T2":     {"graph_propagate": True,  "alpha": 0.05, "T": 2},
+    "prop_a01_T1":      {"graph_propagate": True,  "alpha": 0.1,  "T": 1},
+    "prop_a01_T2":      {"graph_propagate": True,  "alpha": 0.1,  "T": 2},
+    "prop_a02_T1":      {"graph_propagate": True,  "alpha": 0.2,  "T": 1},
+    "prop_a02_T2":      {"graph_propagate": True,  "alpha": 0.2,  "T": 2},
+    "prop_a03_T1":      {"graph_propagate": True,  "alpha": 0.3,  "T": 1},
+    "prop_a03_T2":      {"graph_propagate": True,  "alpha": 0.3,  "T": 2},  # default propagation
+    "prop_a03_T3":      {"graph_propagate": True,  "alpha": 0.3,  "T": 3},
+    "prop_a05_T2":      {"graph_propagate": True,  "alpha": 0.5,  "T": 2},
+    "prop_a07_T2":      {"graph_propagate": True,  "alpha": 0.7,  "T": 2},
 }
 
 # Variants ALWAYS run for every row (cheap, 12 cells extra per row)
@@ -242,9 +330,9 @@ EVAL_DATASETS: dict[str, dict] = {
         "name": "SPIQA test-A",
         "graph":    "data/benchmarks/spiqa/test-A/element_graph_v2.json",
         "elements": "data/benchmarks/spiqa/test-A/elements_v2.jsonl",
-        "queries":  "data/benchmarks/spiqa/test-A/SPIQA_testA.json",
-        "query_format": "spiqa",
-        "image_root": "data/benchmarks/spiqa/test-A/images_224px/SPIQA_testA_Images_224px",
+        "queries": "data/benchmarks/spiqa/test-A/SPIQA_testA.json",
+        "query_format": "spiqa",        # {paper_id: {qa: [{question, reference}, ...]}}
+        "image_root": "data/benchmarks/spiqa/test-A/SPIQA_testA_Images_224px",
     },
     "sciegqa": {
         "name": "SciEGQA",

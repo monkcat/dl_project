@@ -139,46 +139,56 @@ def encode_corpus_for_doc(
     device: str = "cuda",
     use_gpe: bool = True,
 ) -> dict[str, tuple[torch.Tensor, torch.Tensor]]:
-    """Encode every element of one paper. Returns {eid: (tokens (K,D), mask (K,))}."""
+    """Encode every element of one paper in batched forward passes."""
+    import base64, io as _io
+
+    text_ids, text_texts, text_gpes = [], [], []
+    vis_ids, vis_imgs, vis_gpes = [], [], []
     out: dict[str, tuple[torch.Tensor, torch.Tensor]] = {}
+
     for eid in doc_node_ids:
         rec = elements_by_id.get(eid, {})
         ntype = rec.get("type")
         if ntype == "section_header":
             continue
 
-        gpe = None
-        if use_gpe:
-            f = features.get(eid)
-            if f is not None:
-                gpe = encoder._stack_gpe_features([f])
+        gpe_feat = features.get(eid) if use_gpe else None
 
         if ntype in ("text", "caption"):
-            text = rec.get("text") or "(empty)"
-            tok = encoder.tokenize_text([text])
-            z, m = encoder.forward_text(
-                tok["input_ids"].to(device),
-                tok["attention_mask"].to(device),
-                gpe,
-            )
-            out[eid] = (z[0].cpu(), m[0].cpu())
+            text_ids.append(eid)
+            text_texts.append(rec.get("text") or "(empty)")
+            text_gpes.append(gpe_feat)
         elif ntype in ("figure", "table", "equation"):
             img_path = (image_root / doc_id / eid) if image_root else None
             if img_path and img_path.exists():
                 img = Image.open(img_path).convert("RGB")
             else:
-                # MMDocIR keeps images inline as base64 in academic_elements.jsonl
                 img_b64 = rec.get("image_b64")
-                if img_b64:
-                    import base64, io
-                    img = Image.open(io.BytesIO(base64.b64decode(img_b64))).convert("RGB")
-                else:
-                    # Skip if no image available — score will be 0 against any query
-                    out[eid] = (torch.zeros(1, encoder.proj_dim), torch.zeros(1, dtype=torch.long))
-                    continue
-            px = encoder.preprocess_images([img]).to(device)
-            z, m = encoder.forward_vision(px, gpe)
-            out[eid] = (z[0].cpu(), m[0].cpu())
+                img = Image.open(_io.BytesIO(base64.b64decode(img_b64))).convert("RGB") if img_b64 else None
+            vis_ids.append(eid)
+            vis_imgs.append(img)
+            vis_gpes.append(gpe_feat)
+
+    if text_ids:
+        tok = encoder.tokenize_text(text_texts)
+        gpe_batch = encoder._stack_gpe_features(text_gpes)
+        z, m = encoder.forward_text(tok["input_ids"].to(device), tok["attention_mask"].to(device), gpe_batch)
+        for i, eid in enumerate(text_ids):
+            out[eid] = (z[i].cpu(), m[i].cpu())
+
+    if vis_ids:
+        valid = [(eid, img, gpe) for eid, img, gpe in zip(vis_ids, vis_imgs, vis_gpes) if img is not None]
+        missing = [eid for eid, img in zip(vis_ids, vis_imgs) if img is None]
+        if valid:
+            v_eids, v_imgs, v_gpes = zip(*valid)
+            px = encoder.preprocess_images(list(v_imgs)).to(device)
+            gpe_batch = encoder._stack_gpe_features(list(v_gpes))
+            z, m = encoder.forward_vision(px, gpe_batch)
+            for i, eid in enumerate(v_eids):
+                out[eid] = (z[i].cpu(), m[i].cpu())
+        for eid in missing:
+            out[eid] = (torch.zeros(1, encoder.proj_dim), torch.zeros(1, dtype=torch.long))
+
     return out
 
 

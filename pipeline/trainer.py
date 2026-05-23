@@ -42,12 +42,12 @@ SPIQA_ROOT = REPO / "data/benchmarks/spiqa"
 TRAIN_GRAPH = SPIQA_ROOT / "train_val/element_graph_v2.json"
 TRAIN_ELEMENTS = SPIQA_ROOT / "train_val/elements_v2.jsonl"
 TRAIN_QA = SPIQA_ROOT / "train_val/SPIQA_train.json"
-TRAIN_IMG_ROOT = SPIQA_ROOT / "train_val/images/SPIQA_train_val_Images"
+TRAIN_IMG_ROOT = SPIQA_ROOT / "train_val/SPIQA_train_val_Images"
 
 TESTA_GRAPH = SPIQA_ROOT / "test-A/element_graph_v2.json"
 TESTA_ELEMENTS = SPIQA_ROOT / "test-A/elements_v2.jsonl"
 TESTA_QA = SPIQA_ROOT / "test-A/SPIQA_testA.json"
-TESTA_IMG_ROOT = SPIQA_ROOT / "test-A/images_224px/SPIQA_testA_Images_224px"
+TESTA_IMG_ROOT = SPIQA_ROOT / "test-A/SPIQA_testA_Images_224px"
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -384,6 +384,90 @@ def encode_text_only(
     return z[0], m[0]
 
 
+def batch_encode_elements(
+    encoder: ElementTokenEncoder,
+    element_ids: list[str],
+    data: SpiqaSplitData,
+    use_gpe: bool = True,
+    device: str = "cuda",
+) -> dict[str, tuple[torch.Tensor, torch.Tensor]]:
+    """Encode elements in two grouped forward passes (one text batch, one vision batch).
+
+    Deduplicates IDs so each unique element is encoded once. Returns a dict mapping
+    element_id -> (tokens, mask) with gradients intact.
+    """
+    unique_ids: list[str] = list(dict.fromkeys(element_ids))
+
+    text_ids: list[str] = []
+    text_texts: list[str] = []
+    text_gpes: list = []
+    vis_ids: list[str] = []
+    vis_imgs: list = []
+    vis_gpes: list = []
+    unk_ids: list[str] = []
+
+    for eid in unique_ids:
+        rec = data.elements.get(eid, {})
+        ntype = rec.get("type")
+        doc_id = rec.get("doc_id")
+
+        gpe_feat = None
+        if use_gpe and doc_id in data.features:
+            f = data.features[doc_id].get(eid)
+            if f is not None:
+                gpe_feat = f
+
+        if ntype in ("text", "caption", "section_header"):
+            text_ids.append(eid)
+            text_texts.append(rec.get("text") or "(empty)")
+            text_gpes.append(gpe_feat)
+        elif ntype in ("figure", "table", "equation"):
+            vis_ids.append(eid)
+            vis_imgs.append(data.get_image(doc_id, eid))
+            vis_gpes.append(gpe_feat)
+        else:
+            unk_ids.append(eid)
+
+    result: dict[str, tuple[torch.Tensor, torch.Tensor]] = {}
+
+    # Single forward pass for all text elements
+    if text_ids:
+        tok = encoder.tokenize_text(text_texts)
+        gpe_batch = encoder._stack_gpe_features(text_gpes)
+        z, m = encoder.forward_text(
+            tok["input_ids"].to(device), tok["attention_mask"].to(device), gpe_batch
+        )
+        for i, eid in enumerate(text_ids):
+            result[eid] = (z[i], m[i])
+
+    # Single forward pass for all vision elements
+    if vis_ids:
+        valid_triples = [(eid, img, gpe) for eid, img, gpe in zip(vis_ids, vis_imgs, vis_gpes) if img is not None]
+        missing_ids = [eid for eid, img in zip(vis_ids, vis_imgs) if img is None]
+
+        if valid_triples:
+            v_eids, v_imgs, v_gpes = zip(*valid_triples)
+            px = encoder.preprocess_images(list(v_imgs)).to(device)
+            gpe_batch = encoder._stack_gpe_features(list(v_gpes))
+            z, m = encoder.forward_vision(px, gpe_batch)
+            for i, eid in enumerate(v_eids):
+                result[eid] = (z[i], m[i])
+
+        for eid in missing_ids:
+            result[eid] = (
+                torch.zeros(196, encoder.proj_dim, device=device),
+                torch.ones(196, dtype=torch.long, device=device),
+            )
+
+    for eid in unk_ids:
+        result[eid] = (
+            torch.zeros(1, encoder.proj_dim, device=device),
+            torch.ones(1, dtype=torch.long, device=device),
+        )
+
+    return result
+
+
 def compute_batch_losses(
     encoder: ElementTokenEncoder,
     batch: list[dict],
@@ -397,48 +481,69 @@ def compute_batch_losses(
     infonce_threshold: float = 0.5,
     query_pe_dropout: float = 0.5,       # neg-control (o): 0 disables L_cons teacher/student
 ) -> tuple[torch.Tensor, dict[str, float]]:
+    # ── Collect all unique element IDs for the whole batch ──────────────────
+    anchor_eids = [inst["anchor_id"] for inst in batch if not inst.get("anchor_is_text")]
+    cand_eids   = [cid for inst in batch for cid in inst["candidates"]]
+    all_eids    = list(dict.fromkeys(anchor_eids + cand_eids))
+
+    # Two grouped forward passes instead of ~200 individual calls
+    encoded = batch_encode_elements(encoder, all_eids, data, use_gpe=use_gpe, device=device)
+
+    # For L_cons: re-encode anchors without GPE (small batch, anchors only)
+    encoded_no_gpe: dict = {}
+    if use_gpe and lambda_cons > 0 and anchor_eids:
+        encoded_no_gpe = batch_encode_elements(
+            encoder, list(dict.fromkeys(anchor_eids)), data, use_gpe=False, device=device
+        )
+
+    # Batch-encode NL query texts (anchor_is_text instances)
+    nl_instances = [(i, inst) for i, inst in enumerate(batch) if inst.get("anchor_is_text")]
+    nl_encoded: dict[int, tuple] = {}
+    if nl_instances:
+        texts = [inst["anchor_text"] for _, inst in nl_instances]
+        tok = encoder.tokenize_text(texts)
+        z, m = encoder.forward_text(
+            tok["input_ids"].to(device), tok["attention_mask"].to(device), None
+        )
+        for j, (i, _) in enumerate(nl_instances):
+            nl_encoded[i] = (z[j], m[j])
+
+    # ── Compute losses using cached tensors ─────────────────────────────────
     grcl_terms, cov_terms, cons_terms = [], [], []
     cap_fig_cos = []
     kind_counts = {"caption_of": 0, "refer_to": 0, "nl_qa": 0}
 
-    for inst in batch:
+    for i, inst in enumerate(batch):
         kind_counts[inst["anchor_kind"]] = kind_counts.get(inst["anchor_kind"], 0) + 1
 
         if inst.get("anchor_is_text"):
-            # NL query — always no GPE; no consistency loss term contribution
-            a_full, a_mask = encode_text_only(encoder, inst["anchor_text"], device=device)
+            a_full, a_mask = nl_encoded[i]
             a_drop, _ = a_full, a_mask
             anchor_has_gpe = False
         else:
-            a_full, a_mask = encode_element(encoder, inst["anchor_id"], data,
-                                             use_gpe=use_gpe, device=device)
+            a_full, a_mask = encoded[inst["anchor_id"]]
             # Compute a_drop teacher only when GPE active AND query_pe_dropout > 0.
             # query_pe_dropout=0 (neg-control o) disables the L_cons mechanism.
-            if use_gpe and query_pe_dropout > 0:
-                a_drop, _ = encode_element(encoder, inst["anchor_id"], data,
-                                             use_gpe=False, device=device)
+            if use_gpe and query_pe_dropout > 0 and lambda_cons > 0:
+                a_drop, _ = encoded_no_gpe[inst["anchor_id"]]
             else:
                 a_drop, _ = a_full, a_mask
             anchor_has_gpe = use_gpe
 
-        cand_tokens, cand_masks = [], []
-        for cid in inst["candidates"]:
-            ct, cm = encode_element(encoder, cid, data, use_gpe=use_gpe, device=device)
-            cand_tokens.append(ct); cand_masks.append(cm)
+        cand_tokens = [encoded[cid][0] for cid in inst["candidates"]]
+        cand_masks  = [encoded[cid][1] for cid in inst["candidates"]]
 
         scores_full = torch.stack([
             late_interaction_score(a_full, a_mask, ct, cm) for ct, cm in zip(cand_tokens, cand_masks)
         ])
         rels = torch.tensor(inst["relevances"], dtype=torch.float32, device=device)
 
-        # Loss type switch
         if loss_type == "infonce":
-            # Binarize relevance at threshold (multi-positive InfoNCE)
             rels_for_loss = (rels >= infonce_threshold).float()
-        else:  # grcl
+        else:
             rels_for_loss = rels
         grcl_terms.append(grcl_loss(scores_full, rels_for_loss, tau=tau))
-        cov_terms.append(coverage_loss(scores_full, rels, K=5))   # coverage uses graded rels regardless
+        cov_terms.append(coverage_loss(scores_full, rels, K=5))
 
         if anchor_has_gpe and lambda_cons > 0:
             scores_drop = torch.stack([
@@ -446,7 +551,6 @@ def compute_batch_losses(
             ])
             cons_terms.append(consistency_loss(scores_full, scores_drop, tau=tau))
 
-        # Diagnostic: mean-pool cosine between anchor and target
         target_id = inst["target_id"]
         if target_id in inst["candidates"]:
             t_idx = inst["candidates"].index(target_id)
@@ -455,9 +559,9 @@ def compute_batch_losses(
             cap_fig_cos.append((a_pool * t_pool).sum().item())
 
     L_grcl = torch.stack(grcl_terms).mean()
-    L_cov = torch.stack(cov_terms).mean()
+    L_cov  = torch.stack(cov_terms).mean()
     L_cons = torch.stack(cons_terms).mean() if cons_terms else torch.zeros(1, device=device).squeeze()
-    L_tot = total_loss(L_grcl, L_cov, L_cons, lambda_cov=lambda_cov, lambda_cons=lambda_cons)
+    L_tot  = total_loss(L_grcl, L_cov, L_cons, lambda_cov=lambda_cov, lambda_cons=lambda_cons)
 
     metrics = {
         "L_grcl": L_grcl.item(),
@@ -483,10 +587,12 @@ def eval_caption_figure_cos(
 ) -> float:
     encoder.eval()
     pairs = random.Random(0).sample(test_data.caption_of_anchors, min(n_pairs, len(test_data.caption_of_anchors)))
+    all_ids = list(dict.fromkeys(eid for pair in pairs for eid in (pair[1], pair[2])))
+    encoded = batch_encode_elements(encoder, all_ids, test_data, use_gpe=False, device=device)
     sims = []
-    for doc_id, cap_id, fig_id in pairs:
-        c_tok, c_mask = encode_element(encoder, cap_id, test_data, use_gpe=False, device=device)
-        f_tok, f_mask = encode_element(encoder, fig_id, test_data, use_gpe=False, device=device)
+    for _, cap_id, fig_id in pairs:
+        c_tok, c_mask = encoded[cap_id]
+        f_tok, f_mask = encoded[fig_id]
         c_pool = F.normalize((c_tok * c_mask.unsqueeze(-1).float()).sum(0) / c_mask.sum().clamp(min=1).float(), dim=-1)
         f_pool = F.normalize((f_tok * f_mask.unsqueeze(-1).float()).sum(0) / f_mask.sum().clamp(min=1).float(), dim=-1)
         sims.append((c_pool * f_pool).sum().item())
@@ -509,26 +615,31 @@ def eval_recall_at_k(
     if n_queries is not None:
         qa_list = random.Random(0).sample(qa_list, min(n_queries, len(qa_list)))
 
-    hits = {k: 0 for k in ks}
-    n = 0
+    # Pre-encode all unique candidates across all QA pairs in one pass
+    valid_qa = []
     for doc_id, qa in qa_list:
         target = qa["reference"]
-        elem_ids = test_data.doc_node_ids.get(doc_id, [])
-        # Pool = all non-section_header elements in this paper
         nodes_by_id = test_data.nodes_by_doc[doc_id]
-        cand_ids = [e for e in elem_ids if nodes_by_id.get(e, {}).get("type") != "section_header"]
-        if target not in cand_ids:
-            continue
-        # Encode question (no GPE)
+        cand_ids = [
+            e for e in test_data.doc_node_ids.get(doc_id, [])
+            if nodes_by_id.get(e, {}).get("type") != "section_header"
+        ]
+        if target in cand_ids:
+            valid_qa.append((doc_id, qa, cand_ids))
+
+    all_cand_ids = list(dict.fromkeys(cid for _, _, cands in valid_qa for cid in cands))
+    encoded_cands = batch_encode_elements(encoder, all_cand_ids, test_data, use_gpe=True, device=device)
+
+    hits = {k: 0 for k in ks}
+    n = 0
+    for doc_id, qa, cand_ids in valid_qa:
         q_tok, q_mask = encode_text_only(encoder, qa["question"], device=device)
-        # Encode candidates (with GPE — corpus side)
-        scores = []
-        for cid in cand_ids:
-            c_tok, c_mask = encode_element(encoder, cid, test_data, use_gpe=True, device=device)
-            scores.append(late_interaction_score(q_tok, q_mask, c_tok, c_mask).item())
-        # Rank
-        ranked = sorted(zip(cand_ids, scores), key=lambda x: -x[1])
-        ranked_ids = [x[0] for x in ranked]
+        scores = [
+            late_interaction_score(q_tok, q_mask, encoded_cands[cid][0], encoded_cands[cid][1]).item()
+            for cid in cand_ids
+        ]
+        ranked_ids = [x[0] for x in sorted(zip(cand_ids, scores), key=lambda x: -x[1])]
+        target = qa["reference"]
         target_rank = ranked_ids.index(target) + 1 if target in ranked_ids else len(ranked_ids) + 1
         for k in ks:
             if target_rank <= k:
@@ -562,6 +673,8 @@ def main():
     ap.add_argument("--infonce_threshold", type=float, default=0.5)
     ap.add_argument("--anchor_kind", type=str, default="mixed",
                     choices=("caption_of", "refer_to", "nl_qa", "mixed"))
+    ap.add_argument("--warmup_steps", type=int, default=200)
+    ap.add_argument("--weight_decay", type=float, default=0.01)
     ap.add_argument("--eval_every", type=int, default=200)
     ap.add_argument("--eval_cf_pairs", type=int, default=200)
     ap.add_argument("--eval_recall_n", type=int, default=120)
@@ -601,7 +714,8 @@ def main():
                    "eval_every", "eval_cf_pairs", "eval_recall_n",
                    "anchor_kind", "seed", "gamma", "gpe_facets", "hf_id",
                    "edge_types_only", "query_pe_dropout", "section_role_mode",
-                   "infonce_threshold", "tokens_per_visual"):
+                   "infonce_threshold", "tokens_per_visual",
+                   "warmup_steps", "weight_decay"):
             if k in cfg:
                 setattr(args, k, cfg[k])
         # use_gpe stored as bool in config, but argparse uses int
@@ -653,7 +767,14 @@ def main():
         enc_kwargs["tokens_per_visual"] = args.tokens_per_visual
     encoder = ElementTokenEncoder(**enc_kwargs)
     trainable = [p for p in encoder.parameters() if p.requires_grad]
-    optim = torch.optim.AdamW(trainable, lr=args.lr, weight_decay=0.01)
+    optim = torch.optim.AdamW(trainable, lr=args.lr, weight_decay=args.weight_decay)
+
+    def lr_lambda(step: int) -> float:
+        if step < args.warmup_steps:
+            return step / max(1, args.warmup_steps)
+        return 1.0
+
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optim, lr_lambda)
 
     # ── initial eval on test-A ──
     print("\n[eval 0] held-out test-A baseline...")
@@ -701,6 +822,7 @@ def main():
         L.backward()
         torch.nn.utils.clip_grad_norm_(trainable, max_norm=1.0)
         optim.step()
+        scheduler.step()
 
         for k in ["L_grcl", "L_cov", "L_cons", "L_total", "diag_cos_mean"]:
             running[k] += m[k]

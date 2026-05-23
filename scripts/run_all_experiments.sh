@@ -183,6 +183,56 @@ if [ -f "ckpt/h_full_method.pt" ] && [ "$DRY_RUN" != "1" ]; then
     echo "[Prop sweep] complete"
 fi
 
+# ── HP Sweep Wave 4: lr variants ──
+echo ""
+echo "================================================================"
+echo "= HP Wave 4: (h_lr_low) lr=1e-5 + (h_lr_high) lr=1e-4"
+echo "================================================================"
+P6=$(run_one h_lr_low 0)
+P7=$(run_one h_lr_high 1)
+wait_pids "$P6" "$P7"
+echo "[HP Wave 4] complete"
+
+# ── HP Sweep Wave 5: tau variants ──
+echo ""
+echo "================================================================"
+echo "= HP Wave 5: (h_tau_low) tau=0.05 + (h_tau_high) tau=0.10"
+echo "================================================================"
+P8=$(run_one h_tau_low 0)
+P9=$(run_one h_tau_high 1)
+wait_pids "$P8" "$P9"
+echo "[HP Wave 5] complete"
+
+# ── HP Sweep Wave 6: LoRA rank variants ──
+echo ""
+echo "================================================================"
+echo "= HP Wave 6: (h_rank_low) rank=4 + (h_rank_high) rank=16"
+echo "================================================================"
+P10=$(run_one h_rank_low 0)
+P11=$(run_one h_rank_high 1)
+wait_pids "$P10" "$P11"
+echo "[HP Wave 6] complete"
+
+# ── HP Sweep Wave 7: lambda_cov variants ──
+echo ""
+echo "================================================================"
+echo "= HP Wave 7: (h_lcov_low) lcov=0.1 + (h_lcov_high) lcov=0.5"
+echo "================================================================"
+P12=$(run_one h_lcov_low 0)
+P13=$(run_one h_lcov_high 1)
+wait_pids "$P12" "$P13"
+echo "[HP Wave 7] complete"
+
+# ── HP Sweep Wave 8: lambda_cons variants ──
+echo ""
+echo "================================================================"
+echo "= HP Wave 8: (h_lcons_low) lcons=0.1 + (h_lcons_high) lcons=1.0"
+echo "================================================================"
+P14=$(run_one h_lcons_low 0)
+P15=$(run_one h_lcons_high 1)
+wait_pids "$P14" "$P15"
+echo "[HP Wave 8] complete"
+
 # ── Aggregate ──
 if [ "$DRY_RUN" != "1" ]; then
     echo ""

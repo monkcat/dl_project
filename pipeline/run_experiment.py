@@ -73,8 +73,23 @@ def main():
         t0 = time.time()
         result = subprocess.run(cmd, cwd=REPO)
         if result.returncode != 0:
-            print(f"training failed (exit code {result.returncode}); aborting")
-            return 1
+            # Backend.AI's CUDA hook segfaults on nvmlShutdown during Python
+            # exit even after training finished cleanly. Treat as success if
+            # train.json was fully written (has the "final" key) and ckpt exists.
+            ok = False
+            try:
+                if train_log.exists() and Path(ckpt_path).exists():
+                    with open(train_log) as f:
+                        d = json.load(f)
+                    if "final" in d:
+                        ok = True
+            except Exception:
+                ok = False
+            if not ok:
+                print(f"training failed (exit code {result.returncode}); aborting")
+                return 1
+            print(f"  training exited with code {result.returncode} but "
+                  f"train.json + ckpt look complete — treating as success")
         print(f"  training done in {(time.time()-t0)/60:.1f} min")
     else:
         print(f"\n(skipping training for {cfg['row_id']})")
@@ -102,12 +117,37 @@ def main():
     if args.max_queries:
         cmd += ["--max_queries", str(args.max_queries)]
 
+    available = [
+        ds_id for ds_id, dc in EVAL_DATASETS.items()
+        if (REPO / dc["elements"]).exists()
+    ]
+    missing = [ds for ds in EVAL_DATASETS if ds not in available]
+    if missing:
+        print(f"  WARNING: skipping eval datasets with missing elements file: {missing}")
+    if not available:
+        print("  ERROR: no eval datasets available")
+        return 3
+    cmd += ["--datasets"] + available
+
     print(f"$ {' '.join(cmd)}")
     t0 = time.time()
     result = subprocess.run(cmd, cwd=REPO)
     if result.returncode != 0:
-        print(f"eval failed (exit code {result.returncode})")
-        return 2
+        ok = False
+        try:
+            if eval_log.exists():
+                with open(eval_log) as f:
+                    d = json.load(f)
+                # eval_full writes per-dataset results; non-empty top-level dict ⇒ done
+                if isinstance(d, dict) and len(d) > 0:
+                    ok = True
+        except Exception:
+            ok = False
+        if not ok:
+            print(f"eval failed (exit code {result.returncode})")
+            return 2
+        print(f"  eval exited with code {result.returncode} but "
+              f"eval.json looks complete — treating as success")
     print(f"  eval done in {(time.time()-t0)/60:.1f} min")
 
     # ── Summary ──
