@@ -299,29 +299,89 @@ for ntok in (16, 64):
 
 
 # ───── Inference-time evaluation variants ─────
-# Each variant is applied to every row's checkpoint. (i)=(a)+prop, (j)=(h)+prop, (l)=(gme)+prop
-# Propagation α / T sweep also exposed below for Tier 3 (eval-only, no retrain).
+#
+# Three propagation regimes (REPORT_KR §6.5 sub-ablation):
+#   A. uniform_*        — diffusion with all edge weights = 1 (structure only)
+#   B. wbase_* / wfull_*— diffusion with various weight modifier combinations
+#   C. ppr_*            — Personalized PageRank (teleport-based) on full weights
+#
+# Each variant declares:
+#   method:  "none" | "diffusion" | "ppr"
+#   weights: "uniform" | "base" | "base+role" | "base+visual" | "full"
+#   alpha:   propagation/teleport strength
+#   T:       diffusion iterations (diffusion only)
+#   max_iter: ppr iterations cap (ppr only)
+#
 INFERENCE_VARIANTS: dict[str, dict] = {
-    "no_prop":          {"graph_propagate": False, "alpha": 0.0, "T": 0},
-    "prop_a005_T1":     {"graph_propagate": True,  "alpha": 0.05, "T": 1},
-    "prop_a005_T2":     {"graph_propagate": True,  "alpha": 0.05, "T": 2},
-    "prop_a01_T1":      {"graph_propagate": True,  "alpha": 0.1,  "T": 1},
-    "prop_a01_T2":      {"graph_propagate": True,  "alpha": 0.1,  "T": 2},
-    "prop_a02_T1":      {"graph_propagate": True,  "alpha": 0.2,  "T": 1},
-    "prop_a02_T2":      {"graph_propagate": True,  "alpha": 0.2,  "T": 2},
-    "prop_a03_T1":      {"graph_propagate": True,  "alpha": 0.3,  "T": 1},
-    "prop_a03_T2":      {"graph_propagate": True,  "alpha": 0.3,  "T": 2},  # default propagation
-    "prop_a03_T3":      {"graph_propagate": True,  "alpha": 0.3,  "T": 3},
-    "prop_a05_T2":      {"graph_propagate": True,  "alpha": 0.5,  "T": 2},
-    "prop_a07_T2":      {"graph_propagate": True,  "alpha": 0.7,  "T": 2},
+    # ── baseline (no propagation) ──
+    "no_prop":           {"method": "none"},
+
+    # ────────────────────────────────────────────────────────────────────
+    # Group A — UNIFORM weights (structure only; ablates the modifier design)
+    # ────────────────────────────────────────────────────────────────────
+    "uniform_a01_T2":    {"method": "diffusion", "weights": "uniform", "alpha": 0.1, "T": 2},
+    "uniform_a03_T1":    {"method": "diffusion", "weights": "uniform", "alpha": 0.3, "T": 1},
+    "uniform_a03_T2":    {"method": "diffusion", "weights": "uniform", "alpha": 0.3, "T": 2},
+    "uniform_a03_T3":    {"method": "diffusion", "weights": "uniform", "alpha": 0.3, "T": 3},
+    "uniform_a05_T2":    {"method": "diffusion", "weights": "uniform", "alpha": 0.5, "T": 2},
+
+    # ────────────────────────────────────────────────────────────────────
+    # Group B — WEIGHTED diffusion (modifier ablation + α/T sweep)
+    # ────────────────────────────────────────────────────────────────────
+    # B1: which modifier components matter? (α=0.3, T=2 fixed)
+    "wbase_a03_T2":      {"method": "diffusion", "weights": "base",        "alpha": 0.3, "T": 2},
+    "wbase_role_a03_T2": {"method": "diffusion", "weights": "base+role",   "alpha": 0.3, "T": 2},
+    "wbase_vis_a03_T2":  {"method": "diffusion", "weights": "base+visual", "alpha": 0.3, "T": 2},
+    "wfull_a03_T2":      {"method": "diffusion", "weights": "full",        "alpha": 0.3, "T": 2},  # original default
+    # B2: α sweep on full weights
+    "wfull_a01_T2":      {"method": "diffusion", "weights": "full", "alpha": 0.1, "T": 2},
+    "wfull_a05_T2":      {"method": "diffusion", "weights": "full", "alpha": 0.5, "T": 2},
+    "wfull_a07_T2":      {"method": "diffusion", "weights": "full", "alpha": 0.7, "T": 2},
+    # B3: T sweep on full weights
+    "wfull_a03_T1":      {"method": "diffusion", "weights": "full", "alpha": 0.3, "T": 1},
+    "wfull_a03_T3":      {"method": "diffusion", "weights": "full", "alpha": 0.3, "T": 3},
+
+    # ────────────────────────────────────────────────────────────────────
+    # Group C — Personalized PageRank
+    # ────────────────────────────────────────────────────────────────────
+    # C1: α (teleport prob) sweep on full weights
+    "ppr_a015":          {"method": "ppr", "weights": "full",    "alpha": 0.15, "max_iter": 30},
+    "ppr_a030":          {"method": "ppr", "weights": "full",    "alpha": 0.30, "max_iter": 30},
+    "ppr_a050":          {"method": "ppr", "weights": "full",    "alpha": 0.50, "max_iter": 30},
+    "ppr_a070":          {"method": "ppr", "weights": "full",    "alpha": 0.70, "max_iter": 30},
+    "ppr_a085":          {"method": "ppr", "weights": "full",    "alpha": 0.85, "max_iter": 30},
+    # C2: PPR with uniform weights (isolates effect of teleport vs weighting)
+    "ppr_unif_a030":     {"method": "ppr", "weights": "uniform", "alpha": 0.30, "max_iter": 30},
+    "ppr_unif_a050":     {"method": "ppr", "weights": "uniform", "alpha": 0.50, "max_iter": 30},
+
+    # ── Backwards-compat aliases for legacy launcher scripts ──
+    # Old name `prop_a03_T2` (and friends) now redirect to wfull_a03_T2.
+    "prop_a03_T2":       {"method": "diffusion", "weights": "full", "alpha": 0.3, "T": 2},
+    "prop_a01_T2":       {"method": "diffusion", "weights": "full", "alpha": 0.1, "T": 2},
+    "prop_a05_T2":       {"method": "diffusion", "weights": "full", "alpha": 0.5, "T": 2},
+    "prop_a07_T2":       {"method": "diffusion", "weights": "full", "alpha": 0.7, "T": 2},
+    "prop_a03_T1":       {"method": "diffusion", "weights": "full", "alpha": 0.3, "T": 1},
+    "prop_a03_T3":       {"method": "diffusion", "weights": "full", "alpha": 0.3, "T": 3},
 }
 
-# Variants ALWAYS run for every row (cheap, 12 cells extra per row)
-DEFAULT_VARIANTS = ("no_prop", "prop_a03_T2")
+# Compact "always run per row" set — keeps per-row eval fast.
+DEFAULT_VARIANTS = ("no_prop", "wfull_a03_T2")
 
-# Variants run ONLY on (h) checkpoint (propagation α/T sweep, REPORT §6.5)
-PROP_SWEEP_VARIANTS = ("prop_a01_T2", "prop_a05_T2", "prop_a07_T2",
-                       "prop_a03_T1", "prop_a03_T3")
+# Group bundles (used by launchers / aggregator for organized sweeps)
+VARIANTS_GROUP_A_UNIFORM = (
+    "uniform_a01_T2", "uniform_a03_T1", "uniform_a03_T2", "uniform_a03_T3", "uniform_a05_T2",
+)
+VARIANTS_GROUP_B_WEIGHTS = (
+    "wbase_a03_T2", "wbase_role_a03_T2", "wbase_vis_a03_T2", "wfull_a03_T2",
+    "wfull_a01_T2", "wfull_a05_T2", "wfull_a07_T2", "wfull_a03_T1", "wfull_a03_T3",
+)
+VARIANTS_GROUP_C_PPR = (
+    "ppr_a015", "ppr_a030", "ppr_a050", "ppr_a070", "ppr_a085",
+    "ppr_unif_a030", "ppr_unif_a050",
+)
+
+# Full sub-ablation sweep (run on (h) checkpoint, REPORT §6.5)
+PROP_SWEEP_VARIANTS = VARIANTS_GROUP_A_UNIFORM + VARIANTS_GROUP_B_WEIGHTS + VARIANTS_GROUP_C_PPR
 
 
 # ───── Evaluation datasets ─────

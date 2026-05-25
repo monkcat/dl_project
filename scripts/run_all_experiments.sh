@@ -9,9 +9,9 @@
 #
 # Inference variants applied to every row:
 #   no_prop        encoder only
-#   prop_a03_T2    + graph propagation α=0.3, T=2
-# Propagation α/T sweep (prop_a01_T2, prop_a05_T2, prop_a07_T2, prop_a03_T1,
-# prop_a03_T3) is applied ONLY on (h) after training, via a separate eval pass.
+#   wfull_a03_T2   + weighted diffusion (full edge modifiers, α=0.3, T=2)
+# Propagation sub-ablation (21 variants across uniform / weighted-diffusion / PPR
+# groups) is applied ONLY on (h) after training, via a separate eval pass.
 #
 # Strategy: pair rows two-at-a-time on GPU 0 + GPU 1.
 #   Per row: ~5h train + ~1h eval = ~6h. 28 rows / 2 GPUs = 14 waves ≈ 84h ≈ 3.5 days.
@@ -172,11 +172,16 @@ done
 if [ -f "ckpt/h_full_method.pt" ] && [ "$DRY_RUN" != "1" ]; then
     echo ""
     echo "================================================================"
-    echo "= Propagation α/T sub-ablation on (h)"
+    echo "= Propagation sub-ablation on (h) — uniform / weighted-diffusion / PPR (21 variants)"
     echo "================================================================"
     CUDA_VISIBLE_DEVICES=0 python -m pipeline.eval_full \
         --ckpt ckpt/h_full_method.pt \
-        --variants prop_a01_T2 prop_a05_T2 prop_a07_T2 prop_a03_T1 prop_a03_T3 \
+        --variants \
+            uniform_a01_T2 uniform_a03_T1 uniform_a03_T2 uniform_a03_T3 uniform_a05_T2 \
+            wbase_a03_T2 wbase_role_a03_T2 wbase_vis_a03_T2 wfull_a03_T2 \
+            wfull_a01_T2 wfull_a05_T2 wfull_a07_T2 wfull_a03_T1 wfull_a03_T3 \
+            ppr_a015 ppr_a030 ppr_a050 ppr_a070 ppr_a085 \
+            ppr_unif_a030 ppr_unif_a050 \
         --out eval/results/experiments/h_prop_sweep/eval.json \
         > logs/h_prop_sweep.log 2>&1 &
     wait $!

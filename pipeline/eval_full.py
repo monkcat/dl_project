@@ -324,8 +324,13 @@ def eval_dataset(
 
             # For each inference variant, optionally apply graph_propagate
             for var_name, var_cfg in inference_variants.items():
-                if var_cfg.get("graph_propagate"):
-                    # Take top-N candidates, run propagation on them
+                method = var_cfg.get("method", "none")
+                # Back-compat: old configs used {"graph_propagate": True, "alpha", "T"}
+                if "graph_propagate" in var_cfg:
+                    method = "diffusion" if var_cfg["graph_propagate"] else "none"
+
+                if method != "none":
+                    # Take top-50, run propagation, re-merge
                     top_n = sorted(scores.items(), key=lambda x: -x[1])[:50]
                     top_ids = [x[0] for x in top_n]
                     top_scores = torch.tensor([x[1] for x in top_n], dtype=torch.float32)
@@ -333,11 +338,14 @@ def eval_dataset(
                         top_scores,
                         top_ids,
                         graphs[doc_id],
-                        alpha=var_cfg["alpha"],
-                        T=var_cfg["T"],
+                        method=method,
+                        weights=var_cfg.get("weights", "full"),
+                        alpha=var_cfg.get("alpha", 0.3),
+                        T=var_cfg.get("T", 2),
+                        max_iter=var_cfg.get("max_iter", 30),
+                        tol=var_cfg.get("tol", 1e-4),
                     )
                     refined_scores = dict(zip(top_ids, refined.tolist()))
-                    # Re-rank top-50, append non-top with original scores
                     ranked = sorted(refined_scores.items(), key=lambda x: -x[1])
                     other_ids = [e for e in candidate_ids if e not in refined_scores]
                     other_ids.sort(key=lambda e: -scores[e])

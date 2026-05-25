@@ -278,90 +278,150 @@ def late_interaction_batch(
 # Graph propagation API
 # ────────────────────────────────────────────────────────────────────────────
 
-def graph_propagate(
-    initial_scores: Tensor,                 # (N,) scores for top-N elements
-    element_ids: list[str],                 # element_ids[i] corresponds to initial_scores[i]
+def _build_transition_matrix(
+    element_ids: list[str],
     doc_graph: DocumentGraph,
+    weights_mode: str,
     edge_weight_overrides: dict[str, float] | None = None,
-    alpha: float = 0.3,
-    T: int = 2,
-) -> Tensor:                                # (N,) refined scores
-    """Random-walk-style score propagation over per-doc element graph (schema v2).
+    dtype=torch.float32,
+    device=None,
+) -> Tensor:
+    """Build the row-normalized P matrix: P[i,j] = transition i → j.
 
-    s^{(t+1)} = (1 - α) * s^{(t)} + α * (D^-1 W) * s^{(t)}
+    weights_mode (sub-ablation axis from REPORT_KR §6.5):
+        "uniform"      — every edge has weight 1.0; structure only, no semantic boost
+        "base"         — BASE_EDGE_WEIGHTS only (caption_of=1.0, refer_to=0.8, ...)
+        "base+role"    — base × SECTION_ROLE_MODIFIER (appendix/references boost)
+        "base+visual"  — base × VISUAL_TARGET_MODIFIER (refer_to → figure/table boost)
+        "full"         — base × role × visual modifiers (default, REPORT_KR §4.9)
 
-    Effective edge weight for w[i,j] (edge src=i, dst=j):
-        w = BASE_EDGE_WEIGHTS[edge.type] * edge.confidence
-            * SECTION_ROLE_MODIFIER[node_j.section_role]   (if edge.type == 'refer_to')
-            * (VISUAL_TARGET_MODIFIER if node_j.type ∈ {figure,table,equation} else 1)
-                                                            (if edge.type == 'refer_to')
-
-    Direction:
-        edge.bidirectional == True  → contribute to both w[i,j] and w[j,i]
-        edge.bidirectional == False → contribute only to w[i,j]
-
-    Elements in element_ids but not in doc_graph.nodes retain initial score
-    (isolated nodes get no propagation).
+    For bidirectional edges (caption_of, contains), forward/backward weights are
+    computed independently then max-ed (matches §4.9 design choice).
     """
     base = dict(BASE_EDGE_WEIGHTS)
     if edge_weight_overrides:
         base.update(edge_weight_overrides)
 
+    use_role   = weights_mode in ("base+role", "full")
+    use_visual = weights_mode in ("base+visual", "full")
+    uniform    = weights_mode == "uniform"
+
     N = len(element_ids)
     id_to_idx = {eid: i for i, eid in enumerate(element_ids)}
 
-    # Build node attribute lookup from doc_graph (id → node).
-    # Tolerates v1 graphs where nodes is list[str] (no attributes available).
     node_attrs: dict[str, GraphNode] = {}
     raw_nodes = doc_graph.get("nodes", [])
     if raw_nodes and isinstance(raw_nodes[0], dict):
         for n in raw_nodes:
             node_attrs[n["id"]] = n
-    # else: v1-style, no attributes — refer_to modifiers will fall back to 1.0
 
     def target_modifier(target_id: str, edge_type: str) -> float:
-        if edge_type != "refer_to":
+        # Role/visual modifiers only apply to refer_to (per REPORT_KR §4.9 design).
+        if edge_type != "refer_to" or (not use_role and not use_visual):
             return 1.0
         n = node_attrs.get(target_id)
         if not n:
             return 1.0
-        mod = SECTION_ROLE_MODIFIER.get(n.get("section_role") or "other", 1.0)
-        if n.get("type") in ("figure", "table", "equation"):
+        mod = 1.0
+        if use_role:
+            mod *= SECTION_ROLE_MODIFIER.get(n.get("section_role") or "other", 1.0)
+        if use_visual and n.get("type") in ("figure", "table", "equation"):
             mod *= VISUAL_TARGET_MODIFIER
         return mod
 
-    W = torch.zeros(N, N, dtype=initial_scores.dtype, device=initial_scores.device)
+    W = torch.zeros(N, N, dtype=dtype, device=device)
     for edge in doc_graph.get("edges", []):
         i = id_to_idx.get(edge["src"])
         j = id_to_idx.get(edge["dst"])
         if i is None or j is None:
             continue
-        # For bidirectional edges (refer_to / caption_of), use the MAX of forward and
-        # backward target modifiers — semantic relevance is the same in both directions,
-        # and asymmetric weighting would be erased by row-normalization in propagation.
-        fwd_mod = target_modifier(edge["dst"], edge["type"])
-        if edge.get("bidirectional", False):
-            bwd_mod = target_modifier(edge["src"], edge["type"])
-            mod = max(fwd_mod, bwd_mod)
+        if uniform:
+            w_fwd = 1.0
+            w_bwd = 1.0
         else:
-            mod = fwd_mod
-        w = base.get(edge["type"], 0.0) * edge.get("confidence", 1.0) * mod
-        if w > W[i, j].item():
-            W[i, j] = w
-        if edge.get("bidirectional", False) and w > W[j, i].item():
-            W[j, i] = w
+            edge_base = base.get(edge["type"], 0.0) * edge.get("confidence", 1.0)
+            w_fwd = edge_base * target_modifier(edge["dst"], edge["type"])
+            w_bwd = edge_base * target_modifier(edge["src"], edge["type"])
+        if w_fwd > W[i, j].item():
+            W[i, j] = w_fwd
+        if edge.get("bidirectional", False):
+            w_back = max(w_fwd, w_bwd) if not uniform else 1.0
+            if w_back > W[j, i].item():
+                W[j, i] = w_back
 
-    # Column-stochastic transition: P^T[j, i] = W[i, j] / D_out[i].
-    # Then s_new[j] = (1-α) s[j] + α Σ_i (W[i,j] / D_out[i]) s[i] — flow OUT of i
-    # is distributed to its outgoing neighbors j proportional to edge weight.
     deg_out = W.sum(dim=-1, keepdim=True).clamp(min=1e-9)
-    P = W / deg_out                          # row-normalized; P[i,j] = transition i→j
-    PT = P.T                                 # column-stochastic for incoming-flow propagation
+    return W / deg_out                       # row-normalized P[i,j] = transition i→j
+
+
+def graph_propagate(
+    initial_scores: Tensor,                 # (N,) scores for top-N elements
+    element_ids: list[str],                 # element_ids[i] corresponds to initial_scores[i]
+    doc_graph: DocumentGraph,
+    *,
+    method: str = "diffusion",              # "none" | "diffusion" | "ppr"
+    weights: str = "full",                  # "uniform" | "base" | "base+role" | "base+visual" | "full"
+    alpha: float = 0.3,
+    T: int = 2,                             # diffusion only
+    max_iter: int = 30,                     # ppr only
+    tol: float = 1e-4,                      # ppr early-stop tolerance
+    edge_weight_overrides: dict[str, float] | None = None,
+    # legacy positional args (back-compat for old callers)
+    legacy_alpha: float | None = None,
+    legacy_T: int | None = None,
+) -> Tensor:                                # (N,) refined scores
+    """Graph-aware score propagation. Three regimes:
+
+    method="none":
+        Identity — return scores unchanged.
+
+    method="diffusion" (original):
+        s^{(t+1)} = (1 - α) * s^{(t)} + α * P^T @ s^{(t)}
+        Iterate exactly T steps. Local smoothing, no query teleport.
+
+    method="ppr" (Personalized PageRank):
+        s^{(t+1)} = α * q + (1 - α) * P^T @ s^{(t)}
+        where q = initial_scores is the teleport (personalization) vector.
+        Iterate up to max_iter, early-stop on tol convergence. α here is the
+        teleport probability (small α = many random walks; standard PPR uses
+        α≈0.15, i.e. 85% walk / 15% return-to-query).
+
+    weights axis (sub-ablation over edge-weight components):
+        "uniform" / "base" / "base+role" / "base+visual" / "full"
+        See _build_transition_matrix.
+
+    Elements in element_ids but not in doc_graph.nodes retain initial score
+    (isolated rows of P are zero → no propagation in/out).
+    """
+    if method == "none":
+        return initial_scores
+
+    if legacy_alpha is not None:
+        alpha = legacy_alpha
+    if legacy_T is not None:
+        T = legacy_T
+
+    P = _build_transition_matrix(
+        element_ids, doc_graph, weights, edge_weight_overrides,
+        dtype=initial_scores.dtype, device=initial_scores.device,
+    )
+    PT = P.T
 
     s = initial_scores.clone()
-    for _ in range(T):
-        s = (1.0 - alpha) * s + alpha * (PT @ s)
-    return s
+    if method == "diffusion":
+        for _ in range(T):
+            s = (1.0 - alpha) * s + alpha * (PT @ s)
+        return s
+
+    if method == "ppr":
+        q = initial_scores.clone()
+        for _ in range(max_iter):
+            s_new = alpha * q + (1.0 - alpha) * (PT @ s)
+            if (s_new - s).abs().max() < tol:
+                return s_new
+            s = s_new
+        return s
+
+    raise ValueError(f"unknown propagation method: {method!r}")
 
 
 # ────────────────────────────────────────────────────────────────────────────

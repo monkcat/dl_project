@@ -52,19 +52,51 @@ ROW_LABEL = {
 for rid in TIER3_ROWS:
     ROW_LABEL.setdefault(rid, f"(sub) {rid}")
 
-# Default inference variants per row
-VARIANT_ORDER = ["no_prop", "prop_a03_T2"]
+# Default inference variants per row (compact set always run)
+VARIANT_ORDER = ["no_prop", "wfull_a03_T2"]
 VARIANT_LABEL = {
-    "no_prop":      "enc only",
-    "prop_a03_T2":  "+prop α=.3 T=2",
-    "prop_a01_T2":  "+prop α=.1 T=2",
-    "prop_a05_T2":  "+prop α=.5 T=2",
-    "prop_a07_T2":  "+prop α=.7 T=2",
-    "prop_a03_T1":  "+prop α=.3 T=1",
-    "prop_a03_T3":  "+prop α=.3 T=3",
+    "no_prop":           "enc only",
+    # Group A — uniform weights
+    "uniform_a01_T2":    "uniform α=.1 T=2",
+    "uniform_a03_T1":    "uniform α=.3 T=1",
+    "uniform_a03_T2":    "uniform α=.3 T=2",
+    "uniform_a03_T3":    "uniform α=.3 T=3",
+    "uniform_a05_T2":    "uniform α=.5 T=2",
+    # Group B — weighted diffusion
+    "wbase_a03_T2":      "wbase α=.3 T=2",
+    "wbase_role_a03_T2": "w+role α=.3 T=2",
+    "wbase_vis_a03_T2":  "w+vis α=.3 T=2",
+    "wfull_a03_T2":      "wfull α=.3 T=2 (default)",
+    "wfull_a01_T2":      "wfull α=.1 T=2",
+    "wfull_a05_T2":      "wfull α=.5 T=2",
+    "wfull_a07_T2":      "wfull α=.7 T=2",
+    "wfull_a03_T1":      "wfull α=.3 T=1",
+    "wfull_a03_T3":      "wfull α=.3 T=3",
+    # Group C — PPR
+    "ppr_a015":          "PPR α=.15",
+    "ppr_a030":          "PPR α=.30",
+    "ppr_a050":          "PPR α=.50",
+    "ppr_a070":          "PPR α=.70",
+    "ppr_a085":          "PPR α=.85",
+    "ppr_unif_a030":     "PPR uniform α=.30",
+    "ppr_unif_a050":     "PPR uniform α=.50",
+    # Legacy aliases
+    "prop_a03_T2":       "prop α=.3 T=2 (legacy)",
+    "prop_a01_T2":       "prop α=.1 T=2 (legacy)",
+    "prop_a05_T2":       "prop α=.5 T=2 (legacy)",
+    "prop_a07_T2":       "prop α=.7 T=2 (legacy)",
+    "prop_a03_T1":       "prop α=.3 T=1 (legacy)",
+    "prop_a03_T3":       "prop α=.3 T=3 (legacy)",
 }
-PROP_SWEEP_VARIANTS = ["prop_a01_T2", "prop_a05_T2", "prop_a07_T2",
-                       "prop_a03_T1", "prop_a03_T3"]
+
+# Variant groups for the §7.4 propagation sub-ablation table
+GROUP_A_UNIFORM = ["uniform_a01_T2", "uniform_a03_T1", "uniform_a03_T2", "uniform_a03_T3", "uniform_a05_T2"]
+GROUP_B_WEIGHTS = ["wbase_a03_T2", "wbase_role_a03_T2", "wbase_vis_a03_T2", "wfull_a03_T2",
+                   "wfull_a01_T2", "wfull_a05_T2", "wfull_a07_T2", "wfull_a03_T1", "wfull_a03_T3"]
+GROUP_C_PPR     = ["ppr_a015", "ppr_a030", "ppr_a050", "ppr_a070", "ppr_a085",
+                   "ppr_unif_a030", "ppr_unif_a050"]
+
+PROP_SWEEP_VARIANTS = GROUP_A_UNIFORM + GROUP_B_WEIGHTS + GROUP_C_PPR
 
 METRICS = ["recall@5", "recall@10", "mrr", "coverage@10", "perfect@10", "cross_page_hit"]
 METRIC_LABEL = {
@@ -185,15 +217,28 @@ def render_summary(results: dict) -> str:
         lines.append("")
         lines.extend(render_per_dataset_table(results, sub, VARIANT_ORDER))
 
-    # §7.4 Propagation α/T sweep (on (h) checkpoint, separate eval pass)
+    # §7.4 Propagation sub-ablation (on (h) checkpoint, separate eval pass)
     if "h_prop_sweep" in results or any(
         v in (results.get("h", {}).get("spiqa_testA", {}) or {}) for v in PROP_SWEEP_VARIANTS
     ):
-        lines.append("## §7.4 Propagation α/T sweep (on (h) checkpoint)")
-        lines.append("")
         target = "h_prop_sweep" if "h_prop_sweep" in results else "h"
-        # Show all PROP_SWEEP_VARIANTS for (h)
-        lines.extend(render_per_dataset_table(results, [target], ["no_prop"] + PROP_SWEEP_VARIANTS))
+
+        lines.append("## §7.4 Propagation sub-ablation (on (h) checkpoint)")
+        lines.append("")
+        lines.append("Three regimes: A=uniform weights / B=modifier-weighted diffusion / C=PPR.")
+        lines.append("")
+
+        lines.append("### Group A — Uniform weights (structure only)")
+        lines.append("")
+        lines.extend(render_per_dataset_table(results, [target], ["no_prop"] + GROUP_A_UNIFORM))
+
+        lines.append("### Group B — Weighted diffusion (modifier ablation + α/T sweep)")
+        lines.append("")
+        lines.extend(render_per_dataset_table(results, [target], ["no_prop"] + GROUP_B_WEIGHTS))
+
+        lines.append("### Group C — Personalized PageRank")
+        lines.append("")
+        lines.extend(render_per_dataset_table(results, [target], ["no_prop"] + GROUP_C_PPR))
 
     # Quick comparison summary
     lines.append("## Quick comparison: R@10 (no_prop) on every dataset")
