@@ -1,193 +1,237 @@
 # 새 환경에서 실험 실행 (A100 × 2)
 
-## 단계
+전체 실험을 한 줄 명령으로 돌리기 위한 셋업 가이드.
 
-### 1. 코드 클론 + Python 환경
+## 0. 사전 확인
 
-Conda나 venv 둘 다 OK — 격리만 되면 충분.
+GPU 서버:
+- A100 80GB × 2장
+- Python 3.10+ + CUDA 12.x 또는 11.8
+- 디스크: 데이터 ~38GB + 모델 ~12GB + 결과/체크포인트 ~30GB = **약 80GB 권장**
+
+## 1. 코드 클론 + 환경 구축
 
 ```bash
 git clone https://github.com/monkcat/dl_project.git
 cd dl_project
+
+# 옵션 A: venv (가벼움, conda 없는 환경 추천)
+python3.10 -m venv .venv && source .venv/bin/activate
+
+# 옵션 B: conda
+conda create -n dl_hw2 python=3.10 -y && conda activate dl_hw2
 ```
 
-**옵션 A — venv (가벼움, conda 안 깔린 환경 추천)**
-```bash
-python3.10 -m venv .venv
-source .venv/bin/activate
-```
-
-**옵션 B — conda**
-```bash
-conda create -n dl_hw2 python=3.10 -y
-conda activate dl_hw2
-```
-
-### 2. 의존성 설치
+PyTorch + 나머지 의존성:
 
 ```bash
-# PyTorch (CUDA 12.1 - A100용)
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-
-# 나머지는 requirements.txt 로 한 번에
 pip install -r requirements.txt
 ```
 
-### 3. HuggingFace 로그인
+## 2. HuggingFace 로그인
 
 ```bash
-huggingface-cli login
-# 토큰 입력 (read 권한이면 충분)
+huggingface-cli login    # read-only 토큰이면 충분
 ```
 
-> SPIQA / SciEGQA / MMDocIR 모두 공개 dataset이지만 rate limit 회피 + private repo 대비 위해 로그인 권장.
+> 공개 dataset도 rate limit 회피 + 모델 캐시 인증 일관성 차원에서 로그인 권장.
 
-### 4. 데이터 다운로드
+## 3. 데이터 + 모델 받기
+
+**시나리오 A — GPU 서버가 HF를 정상 접근할 수 있는 경우** (대부분):
 
 ```bash
-# 전체 다운로드 (~38 GB: 우리 graph 2.4GB + SPIQA train 32GB + SciEGQA 1.3GB + MMDocIR 2.5GB)
 python scripts/setup_data_from_hf.py --graph_repo ljh38/element-graph-v2.1
-
-# 학습용 SPIQA train images (32GB) 제외하고 평가만 (~6 GB)
-python scripts/setup_data_from_hf.py \
-    --graph_repo ljh38/element-graph-v2.1 \
-    --skip_spiqa_train
 ```
 
-스크립트가 자동으로 처리:
-- v2.1 graph metadata (`ljh38/element-graph-v2.1`) → `data/hf_export/element-graph-v2.1/`
-- `data/benchmarks/{spiqa,sciegqa,mmdocir}/` 로 symlink 정리 (파일명도 trainer가 기대하는 형태로)
-- SPIQA 원본 (`google/spiqa`) 다운로드 + zip 자동 추출
-- SciEGQA 원본 (`Yuwh07/SciEGQA-Bench`) 다운로드 + `PDF.tar` / `Images.tar` 자동 추출
-- MMDocIR 원본 (`MMDocIR/MMDocIR-Challenge`) 다운로드
+자동으로:
+- `ljh38/element-graph-v2.1` (v2.1 그래프 metadata, ~2.4 GB)
+- `google/spiqa` (원본 SPIQA train + test-A images, ~33 GB)
+- `Yuwh07/SciEGQA-Bench` (PDF.tar + Images.tar, ~1.3 GB)
+- `MMDocIR/MMDocIR-Challenge` (parquet + annotations, ~2.5 GB)
 
-다른 SciEGQA mirror를 쓰고 싶으면 `--sciegqa_repo <repo_id>` 로 override.
+→ `data/benchmarks/{spiqa,sciegqa,mmdocir}/` 에 trainer가 기대하는 layout으로 정리됨.
 
-### 5. 데이터 검증
+3개 모델은 첫 실행 시 자동 캐시됨:
+- `google/siglip2-base-patch16-224`
+- `Alibaba-NLP/gme-Qwen2-VL-2B-Instruct`
+- `openai/clip-vit-large-patch14`
+
+**시나리오 B — GPU 서버 HF 접근 차단** (DPI / firewall):
+
+본인 노트북에서 받아서 옮기는 방식:
 
 ```bash
-python -c "
-import json
-for p in [
-    'data/benchmarks/spiqa/train_val/element_graph_v2.json',
-    'data/benchmarks/spiqa/test-A/element_graph_v2.json',
-    'data/benchmarks/sciegqa/element_graph_v2.json',
-    'data/benchmarks/mmdocir/element_graph_v2.json',
-]:
-    g = json.load(open(p))
-    print(f'{p}: {len(g)} docs')
-"
+# 노트북에서 (전체 패키지 ~48GB 생성)
+python scripts/download_all_to_local.py
+# → ./dl_pack/data/benchmarks/ + ./dl_pack/hf_home/ 생성
+
+# Backend.AI 파일 브라우저 / scp / rsync로 ./dl_pack/ 통째로 서버에 업로드
+
+# 서버에서
+mv ~/dl_pack/data/benchmarks ~/dl_project/data/
+cat >> ~/.bashrc <<'EOF'
+export HF_HOME=~/dl_pack/hf_home
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+EOF
+source ~/.bashrc
 ```
 
-기대 출력:
-```
-spiqa/train_val: 25459 docs
-spiqa/test-A:    118 docs
-sciegqa:         80 docs
-mmdocir:         75 docs
+학습 이미지(31GB) 빼고 평가만 하려면:
+```bash
+python scripts/download_all_to_local.py --skip_spiqa_train   # ~17GB
 ```
 
-### 6. 실험 실행
+## 4. 데이터 검증 (preflight)
 
 ```bash
-# 전체 (Tier 1+2+3, 31 rows ≈ 90h on 2× A100)
-bash scripts/run_all_experiments.sh
-
-# 또는 단계별
-bash scripts/run_all_experiments.sh --tier 1     # Tier 1만 (9 rows, ~27h)
-bash scripts/run_all_experiments.sh --tier 2     # Negative controls (4 rows, ~12h)
-bash scripts/run_all_experiments.sh --tier 3     # Sub-ablations (18 rows, ~54h)
-
-# 또는 특정 rows만
-bash scripts/run_all_experiments.sh --rows a,h,gme
-
-# 무엇이 돌아갈지만 확인 (실제 학습 X)
-bash scripts/run_all_experiments.sh --dry_run
+python -m pipeline.sanity_check
 ```
 
-**실험 행 구성** (REPORT_KR §6.3–6.5):
+이게 통과해야 학습 시작 가능. 검증 항목:
+1. 모든 모듈 import OK
+2. 모든 row config 필수 필드 존재 (43 rows)
+3. `EVAL_DATASETS` 의 모든 file path 존재
+4. SPIQA train/test-A 코퍼스 존재 + 이미지 디렉토리 도달 가능
+5. 그래프 schema sample 통과 (node type / section role mapping)
+6. `graph_propagate` 3 method × 5 weight mode 동작
+7. GPU 2장 가시화
 
-| Tier | Rows | 설명 |
-|---|---|---|
-| **1 — Main** | a, b, c, d, e, f, g, h, gme | InfoNCE / GRCL × GPE facet 조합 + GME reference |
-| **2 — Negative controls** | m, n, o, p | section_role shuffle/random, no query PE dropout, encoder swap CLIP-L/14 |
-| **3 — Sub-ablations** | γ×2, λ_cov×4, λ_cons×4, lora×3, edge×3, tokens×2 | (h)를 base로 한 hyperparameter sweep |
+예상 출력:
+```
+───── summary ─────
+  PASS: 36   WARN: 0   FAIL: 0
+[OK] all checks passed — suite is ready to launch
+```
 
-**자동 처리**:
-- Wave마다 GPU 0 + GPU 1 병렬 (총 15 wave)
-- 각 row 끝나면 `eval/results/experiments/<row>_<name>/summary.json` 생성
-- 이미 완료된 row는 자동 skip (중단 후 재실행 안전)
-- 끝나면 (h) 체크포인트로 propagation α/T sweep eval-only 5 variant 추가 실행
-- 자동 aggregate → `eval/results/experiments/SUMMARY.md`
+`FAIL`이 있으면 그 항목 먼저 해결. `WARN`만 있으면 진행 가능.
 
-> conda가 없으면 그냥 현재 활성화된 python으로 실행 (스크립트가 conda 존재 여부 자동 감지).
-
-### 7. 결과 확인
+## 5. 전체 실험 실행 — 한 줄
 
 ```bash
+bash scripts/run_full_suite.sh
+```
+
+이게 자동으로:
+- preflight `sanity_check` 실행
+- **43 rows** (42 학습 + 1 zero-shot) × **22 wave** 에 걸쳐 2 GPU 병렬 학습
+- (h) 체크포인트 위에 **21-variant 전파 sub-ablation** (Group A uniform / B weighted / C PPR)
+- 모든 결과 → `eval/results/experiments/SUMMARY.md`
+
+총 wall time ~**4-5일** (2× A100 기준).
+
+### 단계별 실행
+
+```bash
+bash scripts/run_full_suite.sh --tier 1                  # 9 rows  (~24h)
+bash scripts/run_full_suite.sh --tier 2                  # 4 rows  (~12h)
+bash scripts/run_full_suite.sh --tier 3                  # 25 rows (~60h)
+bash scripts/run_full_suite.sh --tier 4                  # 5 rows  (~14h, h_best_combo_16k 1배 추가)
+bash scripts/run_full_suite.sh --tier 1,2                # Tier 1+2 만
+
+bash scripts/run_full_suite.sh --rows a,h,gme            # 특정 rows 만
+bash scripts/run_full_suite.sh --dry_run                 # 스케줄 미리보기
+bash scripts/run_full_suite.sh --no_prop_sweep           # 전파 sub-ablation 스킵
+```
+
+### Resume 동작
+
+각 row 완료 시 `eval/results/experiments/<rid>_<name>/summary.json` 작성됨.
+launcher 재실행하면 **이미 끝난 row는 자동 skip**. Ctrl-C 후 재실행 안전.
+
+## 6. 결과 확인
+
+```bash
+# 전체 요약
 cat eval/results/experiments/SUMMARY.md
 
-# 개별 row 결과 (예: full method)
+# 개별 row 상세
 ls eval/results/experiments/h_full_method/
-# → train.json, eval.json, summary.json
+# → train.json (학습 곡선), eval.json (metric), summary.json (config 메타)
 
-# 학습 곡선 / metric history
 python -m json.tool eval/results/experiments/h_full_method/train.json | head -50
 ```
 
+`SUMMARY.md`의 6 섹션:
+- §7.1 Tier 1 main ablation
+- §7.2 Tier 2 negative controls
+- §7.3 Tier 3 sub-ablation sweeps (γ / λ_cov / λ_cons / LoRA / lr / τ / anchor / edge / tokens)
+- §7.4 Tier 4 follow-up extensions
+- §7.5 Propagation sub-ablation (Group A/B/C tables)
+- §7.6 Quick comparison (R@10 no-prop 모든 row × dataset)
+
 ---
 
-## 트러블슈팅
+## Troubleshooting
 
-### GPU 메모리 부족
-`pipeline/configs.py` 의 `COMMON["batch"]` 를 16 → 8 또는 4 로 감소.
+### GPU OOM
+`pipeline/configs.py`의 `COMMON["batch"]` 16 → 8 또는 4로 줄이기.
 
 ### HF rate limit / 401
-`huggingface-cli login` 재실행. 토큰은 read 권한이면 충분.
+`huggingface-cli login` 재실행. 또는 시나리오 B로 전환.
 
-### SciEGQA tar 추출 실패
-디스크 공간 부족 가능 (PDF.tar 132MB → ~200MB, Images.tar 1.1GB → ~1.5GB 추출됨). `df -h .` 확인.
+### 학습 도중 nvmlShutdown segfault (Backend.AI)
+`run_experiment.py`가 자동으로 처리함 — `train.json`에 `"final"` 키 있고
+ckpt 존재하면 성공으로 처리. 무시해도 됨.
 
-### 기존 환경에서 SciEGQA 복사하고 싶을 때
-HF 다운로드 대신 직접 복사 가능:
+### 한 row 실패 → 전체 abort?
+**No.** launcher가 wave 단위로 wait + 실패 카운트만 로깅 후 계속. 실패한 row만 재실행:
 ```bash
-# 기존 환경
-tar czf sciegqa_orig.tar.gz data/benchmarks/sciegqa/{PDF,Images,SciEGQA_Bench.jsonl}
-# 새 환경 (scp 후)
-tar xzf sciegqa_orig.tar.gz
-# 그 뒤 --sciegqa_repo 없이 setup 스크립트 다시 돌리면 됨 (이미 있는 파일은 스킵)
+bash scripts/run_full_suite.sh --rows <failed_row>
 ```
 
 ### `ModuleNotFoundError: pipeline`
-프로젝트 루트(`dl_project/`)에서 실행해야 함. `cd /path/to/dl_project` 먼저.
+프로젝트 루트(`dl_project/`)에서 실행해야 함:
+```bash
+cd /path/to/dl_project
+bash scripts/run_full_suite.sh
+```
 
-### 학습 중단 후 재개
-체크포인트는 `ckpt/<row>_<name>.pt` 에 저장됨. resume은 현재 미구현이라 처음부터 다시 돌려야 함.
+### conda 없는 환경에서 `python` 명령이 없음
+- venv 활성화: `source .venv/bin/activate`
+- 또는 `python3 -m pipeline.sanity_check` 처럼 명시
+- launcher는 conda 있으면 자동 활성화, 없으면 활성화된 python 그대로 사용
+
+### Mirror repo로 한 번에 받기
+```bash
+# 노트북에서 (한 번만)
+python -m pipeline.upload_full_mirror --repo ljh38/dl-project-mirror
+
+# 서버에서 한 줄로 받기
+bash scripts/setup_from_mirror.sh
+```
 
 ---
 
 ## 데이터 흐름 요약
 
 ```
-HF: ljh38/element-graph-v2.1            (v2.1 그래프 metadata, ~2.4 GB)
-HF: google/spiqa                         (SPIQA 원본 images, ~33 GB)
-HF: Yuwh07/SciEGQA-Bench                 (SciEGQA 원본 PDF + page images, ~1.3 GB)
-HF: MMDocIR/MMDocIR-Challenge            (MMDocIR layout parquet, ~2.5 GB)
+HF: ljh38/element-graph-v2.1            (v2.1 그래프 metadata,  ~2.4 GB)
+HF: google/spiqa                         (SPIQA 원본 이미지,     ~33 GB)
+HF: Yuwh07/SciEGQA-Bench                 (SciEGQA 원본,         ~1.3 GB)
+HF: MMDocIR/MMDocIR-Challenge            (MMDocIR layout,       ~2.5 GB)
+HF: google/siglip2-base-patch16-224      (메인 encoder,         ~1.5 GB)
+HF: Alibaba-NLP/gme-Qwen2-VL-2B-Instruct (zero-shot reference,  ~8.3 GB)
+HF: openai/clip-vit-large-patch14        ((p) encoder swap,     ~1.6 GB)
        │
        ▼
-  scripts/setup_data_from_hf.py
-       │  (snapshot_download + zip/tar 추출 + symlink 정리)
-       ▼
-data/benchmarks/
-  ├─ spiqa/{train_val,test-A}/{element_graph_v2.json, elements_v2.jsonl, SPIQA_train.json, SPIQA_testA.json, images/}
-  ├─ sciegqa/{element_graph_v2.json, elements_v2.jsonl, queries_with_gt_docling.jsonl, PDF/, Images/}
-  └─ mmdocir/{element_graph_v2.json, elements_v2.jsonl, academic_queries.jsonl, MMDocIR_layouts.parquet}
+  scripts/setup_data_from_hf.py    (시나리오 A — 서버에서 직접 받기)
+       또는
+  scripts/download_all_to_local.py + Backend.AI 파일 브라우저  (시나리오 B)
        │
        ▼
-  bash scripts/run_all_experiments.sh
-       │  (4 rows × train+eval, 2 GPU 병렬, ~12–14h)
+data/benchmarks/                    ← trainer가 읽는 경로
+  ├─ spiqa/{train_val, test-A}/
+  ├─ sciegqa/
+  └─ mmdocir/
+       │
        ▼
-ckpt/                       모델 체크포인트
-eval/results/experiments/   row별 train.json / eval.json
-eval/results/experiments/SUMMARY.md     ← 최종 비교 표
+  bash scripts/run_full_suite.sh    (43 rows × 22 waves, ~4-5일)
+       │
+       ▼
+ckpt/                                ← 체크포인트
+eval/results/experiments/<rid>/      ← row별 train/eval/summary.json
+eval/results/experiments/SUMMARY.md  ← 최종 비교 표 (§7.1-§7.6)
 ```

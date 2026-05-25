@@ -35,19 +35,39 @@ from pipeline.losses import consistency_loss, coverage_loss, grcl_loss, total_lo
 
 # ────────────────────────────────────────────────────────────────────────────
 # Data paths
+#
+# Image roots are tolerant of two layouts:
+#   - raw extract     (GPU server):   train_val/SPIQA_train_val_Images/
+#   - wrapped extract (legacy local): train_val/images/SPIQA_train_val_Images/
+# `_pick_existing` returns whichever exists; falls back to the canonical (raw)
+# path so error messages remain consistent.
 # ────────────────────────────────────────────────────────────────────────────
 
 SPIQA_ROOT = REPO / "data/benchmarks/spiqa"
 
+
+def _pick_existing(*candidates: Path) -> Path:
+    for p in candidates:
+        if p.exists():
+            return p
+    return candidates[0]
+
+
 TRAIN_GRAPH = SPIQA_ROOT / "train_val/element_graph_v2.json"
 TRAIN_ELEMENTS = SPIQA_ROOT / "train_val/elements_v2.jsonl"
 TRAIN_QA = SPIQA_ROOT / "train_val/SPIQA_train.json"
-TRAIN_IMG_ROOT = SPIQA_ROOT / "train_val/SPIQA_train_val_Images"
+TRAIN_IMG_ROOT = _pick_existing(
+    SPIQA_ROOT / "train_val/SPIQA_train_val_Images",
+    SPIQA_ROOT / "train_val/images/SPIQA_train_val_Images",
+)
 
 TESTA_GRAPH = SPIQA_ROOT / "test-A/element_graph_v2.json"
 TESTA_ELEMENTS = SPIQA_ROOT / "test-A/elements_v2.jsonl"
 TESTA_QA = SPIQA_ROOT / "test-A/SPIQA_testA.json"
-TESTA_IMG_ROOT = SPIQA_ROOT / "test-A/SPIQA_testA_Images_224px"
+TESTA_IMG_ROOT = _pick_existing(
+    SPIQA_ROOT / "test-A/SPIQA_testA_Images_224px",
+    SPIQA_ROOT / "test-A/images_224px/SPIQA_testA_Images_224px",
+)
 
 
 # ────────────────────────────────────────────────────────────────────────────

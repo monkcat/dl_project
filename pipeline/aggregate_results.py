@@ -1,11 +1,15 @@
-"""Aggregate per-experiment eval results into a single markdown summary.
+"""Aggregate per-row eval results into a single markdown summary.
 
 Reads `eval/results/experiments/*/eval.json` for every row that completed.
-Sections in output (REPORT_KR §7):
-  §7.1 Main ablation (a-h, gme)              — Tier 1
-  §7.2 Negative controls (m, n, o, p)        — Tier 2
-  §7.3 Sub-ablation sweeps (γ, λ_cov, λ_cons, lora, edge) — Tier 3
-  §7.4 Propagation α/T sweep (on (h))        — separate eval pass
+
+Output sections (mapping to REPORT_KR §7):
+    §7.1  Tier 1 — main ablation (a-h, gme)
+    §7.2  Tier 2 — negative controls (m, n, o, p)
+    §7.3  Tier 3 — sub-ablation sweeps (γ, λ_cov, λ_cons, lora, lr, τ, anchor,
+                                          edge type, visual tokens)
+    §7.4  Tier 4 — follow-up extensions (best-combo, GPE-strong, seeds)
+    §7.5  Propagation sub-ablation on (h) — 3 groups (uniform / weighted / PPR)
+    §7.6  Quick comparison table (R@10 no-prop on every dataset)
 """
 from __future__ import annotations
 
@@ -15,6 +19,20 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
+
+# ──────────────────────────────────────────────────────────────────────────
+# Import tier definitions from configs.py (single source of truth)
+# ──────────────────────────────────────────────────────────────────────────
+import sys
+sys.path.insert(0, str(REPO))
+from pipeline.configs import (
+    TIER1_ROWS, TIER1_NO_TRAIN, TIER2_ROWS, TIER3_ROWS, TIER4_ROWS,
+    INFERENCE_VARIANTS,
+    VARIANTS_GROUP_A_UNIFORM, VARIANTS_GROUP_B_WEIGHTS, VARIANTS_GROUP_C_PPR,
+    DEFAULT_VARIANTS,
+)
+
+
 DATASET_ORDER = ["spiqa_testA", "sciegqa", "mmdocir"]
 DATASET_LABEL = {
     "spiqa_testA": "SPIQA test-A",
@@ -22,19 +40,9 @@ DATASET_LABEL = {
     "mmdocir":     "MMDocIR",
 }
 
-# Tier grouping for the output
-TIER1_ROWS = ["a", "b", "c", "d", "e", "f", "g", "h", "gme"]
-TIER2_ROWS = ["m", "n", "o", "p"]
-TIER3_ROWS = (
-    ["gamma_03", "gamma_07"]
-    + [f"cov_{int(l*10):02d}" for l in (0.0, 0.1, 0.5, 1.0)]
-    + [f"cons_{int(l*10):02d}" for l in (0.0, 0.1, 0.3, 1.0)]
-    + [f"lora_r{r}" for r in (4, 16, 32)]
-    + [f"edge_{e}" for e in ("caption_of", "refer_to", "contains")]
-    + [f"tokens_{n:03d}" for n in (16, 64)]
-)
-
+# Human-readable row labels (auto-fallback to row_id for any not listed)
 ROW_LABEL = {
+    # Tier 1
     "a":   "(a) baseline InfoNCE",
     "b":   "(b) +GPE type only, InfoNCE",
     "c":   "(c) +GPE type+role, InfoNCE",
@@ -44,59 +52,41 @@ ROW_LABEL = {
     "g":   "(g) GRCL + GPE + L_cov",
     "h":   "(h) Full method",
     "gme": "(k) GME zero-shot",
+    # Tier 2
     "m":   "(m) shuffled section_role",
     "n":   "(n) random section_role",
     "o":   "(o) no query PE dropout",
     "p":   "(p) encoder swap CLIP-L/14",
+    # Tier 4
+    "h_best_combo":     "h + best-HP combo",
+    "h_best_combo_16k": "h + best-HP combo, 16k steps",
+    "h_gpe_strong":     "h + stronger GPE init",
+    "h_seed_43":        "h (seed=43)",
+    "h_seed_44":        "h (seed=44)",
 }
 for rid in TIER3_ROWS:
     ROW_LABEL.setdefault(rid, f"(sub) {rid}")
 
-# Default inference variants per row (compact set always run)
-VARIANT_ORDER = ["no_prop", "wfull_a03_T2"]
-VARIANT_LABEL = {
-    "no_prop":           "enc only",
-    # Group A — uniform weights
-    "uniform_a01_T2":    "uniform α=.1 T=2",
-    "uniform_a03_T1":    "uniform α=.3 T=1",
-    "uniform_a03_T2":    "uniform α=.3 T=2",
-    "uniform_a03_T3":    "uniform α=.3 T=3",
-    "uniform_a05_T2":    "uniform α=.5 T=2",
-    # Group B — weighted diffusion
-    "wbase_a03_T2":      "wbase α=.3 T=2",
-    "wbase_role_a03_T2": "w+role α=.3 T=2",
-    "wbase_vis_a03_T2":  "w+vis α=.3 T=2",
-    "wfull_a03_T2":      "wfull α=.3 T=2 (default)",
-    "wfull_a01_T2":      "wfull α=.1 T=2",
-    "wfull_a05_T2":      "wfull α=.5 T=2",
-    "wfull_a07_T2":      "wfull α=.7 T=2",
-    "wfull_a03_T1":      "wfull α=.3 T=1",
-    "wfull_a03_T3":      "wfull α=.3 T=3",
-    # Group C — PPR
-    "ppr_a015":          "PPR α=.15",
-    "ppr_a030":          "PPR α=.30",
-    "ppr_a050":          "PPR α=.50",
-    "ppr_a070":          "PPR α=.70",
-    "ppr_a085":          "PPR α=.85",
-    "ppr_unif_a030":     "PPR uniform α=.30",
-    "ppr_unif_a050":     "PPR uniform α=.50",
-    # Legacy aliases
-    "prop_a03_T2":       "prop α=.3 T=2 (legacy)",
-    "prop_a01_T2":       "prop α=.1 T=2 (legacy)",
-    "prop_a05_T2":       "prop α=.5 T=2 (legacy)",
-    "prop_a07_T2":       "prop α=.7 T=2 (legacy)",
-    "prop_a03_T1":       "prop α=.3 T=1 (legacy)",
-    "prop_a03_T3":       "prop α=.3 T=3 (legacy)",
-}
+# Default inference variants shown in main per-row tables
+VARIANT_ORDER = list(DEFAULT_VARIANTS)
 
-# Variant groups for the §7.4 propagation sub-ablation table
-GROUP_A_UNIFORM = ["uniform_a01_T2", "uniform_a03_T1", "uniform_a03_T2", "uniform_a03_T3", "uniform_a05_T2"]
-GROUP_B_WEIGHTS = ["wbase_a03_T2", "wbase_role_a03_T2", "wbase_vis_a03_T2", "wfull_a03_T2",
-                   "wfull_a01_T2", "wfull_a05_T2", "wfull_a07_T2", "wfull_a03_T1", "wfull_a03_T3"]
-GROUP_C_PPR     = ["ppr_a015", "ppr_a030", "ppr_a050", "ppr_a070", "ppr_a085",
-                   "ppr_unif_a030", "ppr_unif_a050"]
+# Auto-build variant labels from configs (so they stay in sync)
+def _variant_label(name: str) -> str:
+    cfg = INFERENCE_VARIANTS.get(name, {})
+    method = cfg.get("method", "none")
+    if method == "none":
+        return "enc only"
+    weights = cfg.get("weights", "full")
+    alpha = cfg.get("alpha", 0.0)
+    if method == "ppr":
+        wsuf = " (uniform)" if weights == "uniform" else ""
+        return f"PPR α={alpha:.2f}{wsuf}"
+    # diffusion
+    T = cfg.get("T", 2)
+    return f"{weights} α={alpha:.1f} T={T}"
 
-PROP_SWEEP_VARIANTS = GROUP_A_UNIFORM + GROUP_B_WEIGHTS + GROUP_C_PPR
+
+VARIANT_LABEL = {v: _variant_label(v) for v in INFERENCE_VARIANTS}
 
 METRICS = ["recall@5", "recall@10", "mrr", "coverage@10", "perfect@10", "cross_page_hit"]
 METRIC_LABEL = {
@@ -109,14 +99,27 @@ METRIC_LABEL = {
 }
 
 
+# ──────────────────────────────────────────────────────────────────────────
+# Load eval results from eval/results/experiments/*/eval.json
+# ──────────────────────────────────────────────────────────────────────────
+
 def load_results(exp_root: Path) -> dict[str, dict]:
     """Map row_id → per-dataset eval results.
 
-    Looks for any subdir of exp_root with name <row_id>_*/eval.json.
+    Folder names are <row_id>_<run_name> (e.g. `h_full_method`); we recover
+    row_id by trying every known prefix. Multi-token row ids (`lora_r4`,
+    `edge_caption_of`) are handled by longest-prefix match.
     """
     out: dict[str, dict] = {}
     if not exp_root.exists():
         return out
+
+    # All known row ids; longest first so `edge_caption_of` matches before `edge`
+    known_rows = sorted(
+        list(ROW_LABEL.keys()) + TIER3_ROWS + TIER4_ROWS + TIER1_NO_TRAIN + ["h_prop_sweep"],
+        key=lambda x: -len(x),
+    )
+
     for run_dir in sorted(exp_root.iterdir()):
         if not run_dir.is_dir():
             continue
@@ -127,23 +130,23 @@ def load_results(exp_root: Path) -> dict[str, dict]:
             data = json.loads(eval_log.read_text())
         except json.JSONDecodeError:
             continue
-        # Folder name is <row_id>_<run_name>. Recover row_id by matching against known set.
+
         name = run_dir.name
-        # row_id is the part before the first "_" that matches a known prefix.
-        row_id = name.split("_", 1)[0]
-        # Handle prefixes that contain underscores (e.g., "lora_r4", "gamma_03", "edge_caption_of")
-        for prefix in ROW_LABEL.keys():
-            if name == prefix or name.startswith(prefix + "_") or name == prefix + "_" + ROW_LABEL.get(prefix, "").split()[0]:
+        row_id = None
+        for prefix in known_rows:
+            if name == prefix or name.startswith(prefix + "_"):
                 row_id = prefix
                 break
-        # Direct prefix match for multi-word row ids
-        for prefix in TIER3_ROWS:
-            if name.startswith(prefix):
-                row_id = prefix
-                break
+        if row_id is None:
+            row_id = name.split("_", 1)[0]
         out[row_id] = data.get("results", {})
+
     return out
 
+
+# ──────────────────────────────────────────────────────────────────────────
+# Markdown rendering helpers
+# ──────────────────────────────────────────────────────────────────────────
 
 def fmt(v) -> str:
     if v is None:
@@ -156,10 +159,8 @@ def render_per_dataset_table(results: dict, rows: list[str], variants: list[str]
     for ds in DATASET_ORDER:
         lines.append(f"### {DATASET_LABEL[ds]}")
         lines.append("")
-        header = "| Row | Variant | " + " | ".join(METRIC_LABEL[m] for m in METRICS) + " | n |"
-        sep = "|" + "---|" * (3 + len(METRICS))
-        lines.append(header)
-        lines.append(sep)
+        lines.append("| Row | Variant | " + " | ".join(METRIC_LABEL[m] for m in METRICS) + " | n |")
+        lines.append("|" + "---|" * (3 + len(METRICS)))
         for row in rows:
             if row not in results:
                 continue
@@ -180,72 +181,76 @@ def render_per_dataset_table(results: dict, rows: list[str], variants: list[str]
 
 def render_summary(results: dict) -> str:
     lines = []
-    lines.append("# Experiment Results — v2.1 element graph ablation")
+    lines.append("# Experiment Results — element-graph v2.1 ablation")
     lines.append("")
     n_done = len(results)
     lines.append(f"Loaded {n_done} completed runs.")
     lines.append("")
 
-    # §7.1 Tier 1 — main
-    lines.append("## §7.1 Main ablation (Tier 1, rows a-h, k=gme)")
+    # §7.1 Tier 1
+    lines.append("## §7.1 Main ablation (Tier 1, rows a-h + k=gme)")
     lines.append("")
-    lines.extend(render_per_dataset_table(results, TIER1_ROWS, VARIANT_ORDER))
+    lines.extend(render_per_dataset_table(results, TIER1_ROWS + TIER1_NO_TRAIN, VARIANT_ORDER))
 
-    # §7.2 Tier 2 — negative controls
+    # §7.2 Tier 2
     lines.append("## §7.2 Negative controls (Tier 2, rows m-p)")
     lines.append("")
     lines.extend(render_per_dataset_table(results, TIER2_ROWS, VARIANT_ORDER))
 
-    # §7.3 Tier 3 — sub-ablation sweeps (group by family for readability)
+    # §7.3 Tier 3 — grouped by hyperparameter family
     lines.append("## §7.3 Sub-ablation sweeps (Tier 3)")
     lines.append("")
     for label, sub in [
-        ("γ sweep (GRCL 2-hop decay)",
-         ["gamma_03", "h", "gamma_07"]),
-        ("λ_cov sweep (coverage weight)",
-         ["cov_00", "cov_01", "h", "cov_05", "cov_10"]),
-        ("λ_cons sweep (consistency weight)",
-         ["cons_00", "cons_01", "cons_03", "h", "cons_10"]),
-        ("LoRA rank sweep",
-         ["lora_r4", "h", "lora_r16", "lora_r32"]),
-        ("Edge type isolation",
-         ["edge_caption_of", "edge_refer_to", "edge_contains", "h"]),
-        ("Token count per visual element",
-         ["tokens_016", "tokens_064", "h"]),
+        ("γ sweep (GRCL 2-hop decay)",       ["gamma_03", "h", "gamma_07"]),
+        ("λ_cov sweep",                       ["cov_00", "cov_01", "h", "cov_05", "cov_10"]),
+        ("λ_cons sweep",                      ["cons_00", "cons_01", "cons_03", "h", "cons_10"]),
+        ("LoRA rank sweep",                   ["lora_r4", "h", "lora_r16", "lora_r32"]),
+        ("Learning rate sweep",               ["lr_1e5", "h", "lr_1e4"]),
+        ("Temperature τ sweep",               ["tau_005", "h", "tau_010"]),
+        ("Anchor kind sweep",                 ["anchor_caption", "anchor_refer", "anchor_nlqa", "h"]),
+        ("Edge type isolation in GRCL",       ["edge_caption_of", "edge_refer_to", "edge_contains", "h"]),
+        ("Visual tokens per element",         ["tokens_016", "tokens_064", "h"]),
     ]:
         lines.append(f"### {label}")
         lines.append("")
         lines.extend(render_per_dataset_table(results, sub, VARIANT_ORDER))
 
-    # §7.4 Propagation sub-ablation (on (h) checkpoint, separate eval pass)
-    if "h_prop_sweep" in results or any(
-        v in (results.get("h", {}).get("spiqa_testA", {}) or {}) for v in PROP_SWEEP_VARIANTS
-    ):
+    # §7.4 Tier 4
+    lines.append("## §7.4 Follow-up extensions (Tier 4)")
+    lines.append("")
+    lines.extend(render_per_dataset_table(results, TIER4_ROWS + ["h"], VARIANT_ORDER))
+
+    # §7.5 Propagation sub-ablation (3 groups)
+    has_prop_sweep = (
+        "h_prop_sweep" in results
+        or any(v in (results.get("h", {}).get("spiqa_testA", {}) or {})
+               for v in VARIANTS_GROUP_A_UNIFORM + VARIANTS_GROUP_B_WEIGHTS + VARIANTS_GROUP_C_PPR)
+    )
+    if has_prop_sweep:
         target = "h_prop_sweep" if "h_prop_sweep" in results else "h"
-
-        lines.append("## §7.4 Propagation sub-ablation (on (h) checkpoint)")
+        lines.append("## §7.5 Propagation sub-ablation on (h) — 3 regimes × hyperparam sweep")
         lines.append("")
-        lines.append("Three regimes: A=uniform weights / B=modifier-weighted diffusion / C=PPR.")
+        lines.append("All variants applied to the (h) checkpoint (eval-only).")
         lines.append("")
-
-        lines.append("### Group A — Uniform weights (structure only)")
+        lines.append("### Group A — Uniform weights (structure only, modifier-design ablation)")
         lines.append("")
-        lines.extend(render_per_dataset_table(results, [target], ["no_prop"] + GROUP_A_UNIFORM))
-
+        lines.extend(render_per_dataset_table(
+            results, [target], ["no_prop"] + list(VARIANTS_GROUP_A_UNIFORM)))
         lines.append("### Group B — Weighted diffusion (modifier ablation + α/T sweep)")
         lines.append("")
-        lines.extend(render_per_dataset_table(results, [target], ["no_prop"] + GROUP_B_WEIGHTS))
-
+        lines.extend(render_per_dataset_table(
+            results, [target], ["no_prop"] + list(VARIANTS_GROUP_B_WEIGHTS)))
         lines.append("### Group C — Personalized PageRank")
         lines.append("")
-        lines.extend(render_per_dataset_table(results, [target], ["no_prop"] + GROUP_C_PPR))
+        lines.extend(render_per_dataset_table(
+            results, [target], ["no_prop"] + list(VARIANTS_GROUP_C_PPR)))
 
-    # Quick comparison summary
-    lines.append("## Quick comparison: R@10 (no_prop) on every dataset")
+    # §7.6 Quick comparison
+    lines.append("## §7.6 Quick comparison — R@10 (no propagation)")
     lines.append("")
     lines.append("| Row | " + " | ".join(DATASET_LABEL[d] for d in DATASET_ORDER) + " |")
     lines.append("|" + "---|" * (1 + len(DATASET_ORDER)))
-    all_rows = TIER1_ROWS + TIER2_ROWS + TIER3_ROWS
+    all_rows = TIER1_ROWS + TIER1_NO_TRAIN + TIER2_ROWS + TIER3_ROWS + TIER4_ROWS
     for row in all_rows:
         if row not in results:
             continue
@@ -258,6 +263,10 @@ def render_summary(results: dict) -> str:
 
     return "\n".join(lines) + "\n"
 
+
+# ──────────────────────────────────────────────────────────────────────────
+# Main
+# ──────────────────────────────────────────────────────────────────────────
 
 def main():
     ap = argparse.ArgumentParser()
