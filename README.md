@@ -1,210 +1,203 @@
-# Element Graph for Academic Multimodal Retrieval
+# Element Graph for Academic Figure Retrieval
 
-Typed document element graphs for retrieval research on academic papers
-(**SPIQA / SciEGQA / MMDocIR**). The graph plays two roles:
+학술 문서의 typed element graph (`figure` / `caption` / `paragraph` nodes + `caption_of` / `refer_to` / `contains` typed edges) 를 retrieval 시스템의 **단일 source of truth** 로 활용하는 framework. 동일 edge weight schema 가 (1) retriever 학습의 graded relevance supervision (GRCL) 과 (2) 임의의 base retriever 위에 얹는 inference-time score propagation prior 를 모두 정의한다.
 
-1. **Training supervision** via *Graph-Relevance Contrastive Loss* (GRCL) —
-   a graph-induced graded relevance distribution replaces binary positives.
-2. **Inference-time score propagation** via typed edges with target-attribute
-   modifiers (appendix boost, cross-modal boost) and an alternative
-   *Personalized PageRank* (PPR) regime.
-
-The same edge-weight schema (`pipeline/types.py:BASE_EDGE_WEIGHTS`) drives both
-training and inference (single source of truth).
-
-> **Full design + results**: see [REPORT_KR.md](REPORT_KR.md) for methodology,
-> related work, dataset stats, experimental setup, and (post-run) results.
+> **전체 보고서**: [REPORT_KR_v3.md](REPORT_KR_v3.md)
 
 ---
 
-## What's in this repo
+## TL;DR — SPIQA test-A 핵심 결과
 
-| Path | Contents |
-|---|---|
-| [`pipeline/`](pipeline/) | Core training + eval code ([details](pipeline/README.md)) |
-| [`eval/`](eval/) | Evaluation pipeline + baselines ([details](eval/README.md)) |
-| [`scripts/`](scripts/) | Launcher scripts + new-env playbook ([details](scripts/README_new_env.md)) |
-| [`REPORT_KR.md`](REPORT_KR.md) | Full report (Korean) — motivation, schema, method, ablation design |
-| `data/benchmarks/` | (gitignored) populated by setup scripts |
-| `ckpt/` | (gitignored) trained checkpoints |
-| `eval/results/` | (gitignored) runtime outputs |
+| Setup | R@5 | R@10 | MRR |
+|---|---|---|---|
+| (a) InfoNCE baseline | — | 84.4 | 32.8 |
+| (e) **GRCL** (graded supervision, p=0.042 vs (a)) | — | 87.1 | 38.2 |
+| **`refer_to`** edge 단독 GRCL | — | **90.4** | 41.9 |
+| HP 최적화 (lr=1e-4, τ=0.10) | — | 88.6 | **42.6** |
+| GME-Qwen2-VL-2B (외부 MLLM) zero-shot | 47.1 | 58.3 | 33.1 |
+| **GME + graph propagation (plug-in)** | **78.2** | **84.4** | **63.3** |
+
+가장 큰 효과는 우리 모델 학습이 아니라 **외부 retrieval-tuned MLLM 위에 graph propagation 을 plug-in** 했을 때 (+26pp R@10, +30pp MRR, MRR 거의 2배). 동일 schema 가 200M dual-encoder 의 supervised training 과 2B decoder MLLM 의 inference-time augmentation 양쪽을 구동한다.
+
+---
+
+## Five key findings
+
+1. **GRCL > InfoNCE** — graph-induced graded supervision 이 binary contrastive 대비 R@10 +2.7pp, MRR +5.4pp, paired-bootstrap **p = 0.042**.
+2. **`refer_to` edge dominates** — 5종 edge 중 paragraph→figure explicit reference 만 사용하면 R@10 **90.4** (전체 ablation 최고치).
+3. **HP optimization** — lr=1e-4 + τ=0.10 으로 R@10 **88.6**, MRR **42.6**.
+4. **Plug-in propagation on external MLLM** — GME-Qwen2-VL-2B + graph propagation 으로 R@10 **58.3 → 84.4 (+26pp)**, MRR **33.1 → 63.3 (+30pp)** — 본 study 최대 단일 효과.
+5. **Three propagation regimes equivalent** — uniform diffusion / weighted diffusion / PPR 모두 GME 위에서 R@10 83-85%, MRR 59-63% 동등. **graph 구조 자체가 효용 원천**, modifier 정교함은 marginal.
 
 ---
 
 ## Quick start
 
-### 1. Set up the environment
+### 1. Setup
 
 ```bash
-git clone https://github.com/monkcat/dl_project.git
-cd dl_project
-
-# Python — venv or conda either works
-python3.10 -m venv .venv && source .venv/bin/activate
-# (or)  conda create -n dl_hw2 python=3.10 -y && conda activate dl_hw2
-
-# PyTorch (A100 → CUDA 12.x)
+git clone https://github.com/monkcat/dl_project.git && cd dl_project
+python3.10 -m venv .venv && source .venv/bin/activate   # or conda env
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
-
-# HuggingFace login (for model downloads + private repos)
 huggingface-cli login
 ```
 
-### 2. Pull data and models
+### 2. Pull data (≈ 33 GB)
 
-Choose ONE of these depending on your environment.
-
-**(A) Direct download from HF on a connected machine** (recommended):
 ```bash
 python scripts/setup_data_from_hf.py --graph_repo ljh38/element-graph-v2.1
 ```
-Populates `data/benchmarks/{spiqa,sciegqa,mmdocir}/` from:
-- `ljh38/element-graph-v2.1`     (our v2.1 graphs, ~2.4 GB)
-- `google/spiqa`                 (~33 GB)
-- `Yuwh07/SciEGQA-Bench`         (~1.3 GB)
-- `MMDocIR/MMDocIR-Challenge`    (~2.5 GB)
 
-**(B) GPU server can't reach HF** — download on laptop first, then copy:
+자동 다운로드:
+- `ljh38/element-graph-v2.1` — v2.1 element graph metadata
+- `google/spiqa` — SPIQA train images + test-A
+- (선택) `Yuwh07/SciEGQA-Bench`, `MMDocIR/MMDocIR-Challenge` — 추가 평가 dataset
+
+### 3. (옵션) 학습된 adapter 받아서 평가만
+
+처음부터 학습 (≈ 4-5 days) 대신, 우리가 학습한 LoRA adapter (42 rows, ~263 MB) 만 받아서 eval:
+
 ```bash
-# On laptop:
-python scripts/download_all_to_local.py
-# (creates ./dl_pack/ with data + models, ~48 GB)
-
-# Transfer ./dl_pack/ to server (Backend.AI file browser, scp, rsync, ...)
-
-# On server:
-mv ~/dl_pack/data/benchmarks ~/dl_project/data/
-echo 'export HF_HOME=~/dl_pack/hf_home'   >> ~/.bashrc
-echo 'export HF_HUB_OFFLINE=1'            >> ~/.bashrc
-echo 'export TRANSFORMERS_OFFLINE=1'      >> ~/.bashrc
-source ~/.bashrc
+huggingface-cli download ljh38/element-graph-encoder-v2.1 --local-dir hf_models
+python -m pipeline.eval_full \
+    --ckpt hf_models/adapters/h_best_combo.pt \
+    --lora_rank 8 --gpe_facets type,role,depth,pos \
+    --datasets spiqa_testA \
+    --out eval/results/quick.json
 ```
 
-### 3. Run the full experiment suite
+### 4. GME + graph propagation 재현 (학습 없음, ~10분)
+
+```bash
+python -m pipeline.eval_full \
+    --hf_id Alibaba-NLP/gme-Qwen2-VL-2B-Instruct \
+    --datasets spiqa_testA \
+    --variants no_prop wfull_a03_T2 ppr_a030 uniform_a05_T2 \
+    --out eval/results/gme_prop.json
+```
+
+### 5. 전체 학습 + ablation suite (≈ 4-5 days on 2× A100)
 
 ```bash
 bash scripts/run_full_suite.sh
 ```
 
-This single command:
-1. Runs preflight `pipeline.sanity_check` (validates configs, paths, schema, GPUs)
-2. Launches **43 rows** across **4 tiers** on 2× A100 in pair-waves
-3. Runs the **propagation sub-ablation** (21 inference variants) on the (h) checkpoint
-4. Aggregates everything into `eval/results/experiments/SUMMARY.md`
+- Preflight `pipeline.sanity_check` 자동 실행
+- 43 trained rows (4 tier) × 22 wave, 2× A100 병렬
+- (h) checkpoint 위 21-variant propagation sub-ablation
+- 결과 자동 aggregate → `eval/results/experiments/SUMMARY.md`
 
-Subset / resume options:
-```bash
-bash scripts/run_full_suite.sh --tier 1                 # just Tier 1 (~24h)
-bash scripts/run_full_suite.sh --tier 1,2               # Tier 1 + 2
-bash scripts/run_full_suite.sh --rows a,h,gme           # specific rows only
-bash scripts/run_full_suite.sh --dry_run                # show schedule, don't run
-bash scripts/run_full_suite.sh --no_prop_sweep          # skip the 21-variant propagation sub-ablation
+부분 실행: `--tier 1 / 2 / 3 / 4`, `--rows a,h,gme`, `--dry_run`.
+
+---
+
+## Method summary
+
+세 component, **모두 동일 `BASE_EDGE_WEIGHTS` schema** 공유:
+
+```python
+# pipeline/types.py — single source of truth
+BASE_EDGE_WEIGHTS = {
+    "caption_of":   1.0,    # caption ↔ figure/table
+    "refer_to":     0.8,    # body → figure (explicit reference, strongest signal)
+    "contains":     0.5,    # section_header → child
+    "reading_next": 0.3,
+    "section_next": 0.2,
+}
 ```
 
-The launcher **is resume-safe**: every row writes `summary.json` on completion,
-and the next invocation skips already-done rows. Safe to Ctrl-C and re-run.
+### Component 1 — Element token encoder + Late interaction
 
-Total estimated time: **~4-5 days on 2× A100 80GB** (8k steps × 42 trained rows
-+ eval). With `--tier 1`, ~24 hours.
-
----
-
-## Experiment design overview
-
-**43 rows total** = 42 trained + 1 GME zero-shot, organized into 4 tiers
-(REPORT_KR §6.3 - §6.5):
-
-| Tier | Rows | Purpose |
-|---|---|---|
-| **1 — Main ablation** | a, b, c, d, e, f, g, h, gme | InfoNCE/GRCL × GPE facet inclusion × L_cov/L_cons presence + GME reference |
-| **2 — Negative controls** | m, n, o, p | Shuffled/random `section_role`, no query PE dropout, encoder swap (CLIP-L/14) |
-| **3 — Sub-ablations** | 25 rows | Single-hyperparameter sweeps on (h): γ, λ_cov, λ_cons, LoRA rank, lr, τ, anchor kind, edge type, visual tokens |
-| **4 — Follow-up** | 5 rows | h_best_combo, h_best_combo_16k, h_gpe_strong, h_seed_43/44 |
-
-**Inference variants** applied per row (no retraining required):
-- `no_prop` — encoder only (baseline)
-- `wfull_a03_T2` — default weighted-diffusion propagation
-
-Plus a **propagation sub-ablation** on the (h) checkpoint covering **21 variants**
-across three regimes:
-- **Group A — Uniform weights** (5): all edges weight=1, isolates the modifier design
-- **Group B — Weighted diffusion** (9): modifier-component ablation + α/T sweep
-- **Group C — Personalized PageRank** (7): teleport-based α sweep + uniform-PPR comparison
-
-### Three propagation regimes (math)
-
-| Regime | Formula | Hyperparams |
-|---|---|---|
-| **none** | `s` (identity) | — |
-| **diffusion** | `s_{t+1} = (1-α)·s_t + α·P^T·s_t`, iterate T steps | α, T, weights mode |
-| **PPR** | `s_{t+1} = α·q + (1-α)·P^T·s_t`, iterate to convergence | α (teleport prob), max_iter, weights mode |
-
-Where `q = initial scores`, `P` is built from `BASE_EDGE_WEIGHTS` ×
-`SECTION_ROLE_MODIFIER` × `VISUAL_TARGET_MODIFIER` per the
-`weights ∈ {uniform, base, base+role, base+visual, full}` selection.
-
----
-
-## Architecture summary
-
-**Encoder**: SigLIPv2-base (200M) + LoRA (rank 8) + Graph Position Embedding (GPE)
-- GPE: 4 sigmoid-gated facets (`type`, `role`, `depth`, `pos`) added token-broadcast
-- Late interaction (ColBERT-style MaxSim) for retrieval scoring
-- For row (p): CLIP-L/14 swap path with `d_text` ≠ `d_vision` handled via adapter
-
-**Training losses**:
-- `L_GRCL` — graded contrastive (graph-relevance kernel `g(q, e)`)
-- `L_cov` — coverage boundary (positives above K-th negative)
-- `L_cons` — PE-dropout consistency (KL between full-PE and PE-dropped query)
-
-Total: `L = L_GRCL + λ_cov · L_cov + λ_cons · L_cons`
-
-For full math, see [REPORT_KR.md](REPORT_KR.md) §4 Method.
-
----
-
-## Available models
-
-The encoder backbones used in this study:
-
-| HF id | Used by | Size |
-|---|---|---|
-| `google/siglip2-base-patch16-224` | All Tier 1-4 except (gme), (p) | 200M |
-| `Alibaba-NLP/gme-Qwen2-VL-2B-Instruct` | (gme) — zero-shot reference | 2B |
-| `openai/clip-vit-large-patch14` | (p) — encoder swap negative control | 430M |
-
-`pipeline.sanity_check --check_models` probes the HF cache and warns if any are missing.
-
----
-
-## Reading results
-
-After the suite finishes:
-
-```bash
-cat eval/results/experiments/SUMMARY.md
+SigLIPv2-base-patch16-224 (200M) + LoRA rank 8 (~491K trainable params). token-level output `(K, D_proj)`. retrieval score 는 ColBERT-style MaxSim:
+```
+score(q, e) = Σ_i max_j  <q_tok[i], e_tok[j]>
 ```
 
-The summary has six sections matching REPORT_KR §7:
+### Component 2 — Graph-Relevance Contrastive Loss (GRCL)
 
-- §7.1 Tier 1 main ablation (per dataset × variant)
-- §7.2 Tier 2 negative controls
-- §7.3 Tier 3 sub-ablation sweeps (grouped by HP family)
-- §7.4 Tier 4 follow-up extensions
-- §7.5 Propagation sub-ablation (Group A / B / C tables)
-- §7.6 Quick comparison: R@10 (no-prop) on every dataset × every row
+graph relevance kernel `g(q, e)` = max-product path weight (2-hop, γ-decay). 이를 graded target 으로 한 listwise CE:
+```
+L_GRCL = -Σ_i (r_i/Σ_j r_j) · log( exp(s_i/τ) / Σ_j exp(s_j/τ) )
+```
+binary InfoNCE 의 strict generalization (r ∈ {0, 1} 이면 표준 InfoNCE).
 
-Per-row raw eval JSON:
-```bash
-ls eval/results/experiments/h_full_method/
-# → train.json   eval.json   summary.json
+### Component 3 — Inference-time graph propagation
+
+같은 schema 가 transition matrix `P` 를 구성. 세 regime:
+
+```
+Uniform diffusion:    s ← (1-α)s + α P^T s     # edge weight = 1
+Weighted diffusion:   s ← (1-α)s + α P^T s     # BASE × role × visual modifier
+Personalized PageRank: s ← α q + (1-α) P^T s    # teleport
+```
+
+**재학습 없이 임의의 retriever 위에 plug-in** — §4.4 의 GME 결과가 핵심 증거.
+
+---
+
+## Repository layout
+
+```
+pipeline/                       core code (training + eval + graph machinery)
+├── types.py                    schema v2.1 + BASE_EDGE_WEIGHTS (single source of truth)
+├── configs.py                  43-row ablation presets, INFERENCE_VARIANTS (3 regimes × HP grid)
+├── trainer.py                  GRCL training loop
+├── eval_full.py                multi-dataset evaluation orchestrator
+├── run_experiment.py           per-row train + eval
+├── aggregate_results.py        SUMMARY.md generator
+├── sanity_check.py             8-stage preflight check
+├── element_encoder.py          SigLIPv2 / CLIP-L/14 + LoRA + late interaction
+├── graph_relevance.py          g(q, e) kernel
+├── graph_pe.py                 Graph Position Embedding (optional)
+├── losses.py                   GRCL + auxiliary losses
+└── gme_encoder.py              GME-Qwen2-VL-2B adapter
+
+scripts/
+├── setup_data_from_hf.py       single-command data download
+├── run_full_suite.sh           one-shot launcher (preflight + 43 rows + prop sweep + aggregate)
+├── download_all_to_local.py    laptop-side downloader (data + models, for off-line server transfer)
+├── upload_archives_to_hf.py    publish archives (zip/tar) instead of 270k extracted files
+└── README_new_env.md           GPU server setup playbook (KR)
+
+eval/
+├── analysis/                   plot scripts, statistical tests, paper figures
+├── baselines/                  BM25, ColPali, VisRAG, SigLIP zero-shot baselines
+├── datasets/                   standalone dataset loaders
+├── metrics/                    Recall@k, MRR, Coverage@K, PerfectSet@K, IoU
+└── results/                    (gitignored) experiment outputs + figures
+
+data/benchmarks/                (gitignored) populated by setup_data_from_hf.py
+ckpt/                           (gitignored) trained checkpoints
 ```
 
 ---
 
-## License & attribution
+## Reproducibility — HF artifacts
 
-Code: MIT (default for class projects).
-Data: original dataset licenses (CC-BY 4.0 for SPIQA, etc.) apply where redistributed.
-Citation: TBD (DL project, KAIST 2026).
+| 자료 | HF repo | 용량 |
+|---|---|---|
+| Element graph metadata (v2.1) | [ljh38/element-graph-v2.1](https://huggingface.co/datasets/ljh38/element-graph-v2.1) | ~2.4 GB |
+| **학습된 LoRA adapters** (42 rows) | [ljh38/element-graph-encoder-v2.1](https://huggingface.co/ljh38/element-graph-encoder-v2.1) | ~263 MB |
+| SPIQA 원본 | [google/spiqa](https://huggingface.co/datasets/google/spiqa) | ~33 GB |
+
+세 개 backbone 모델 (`google/siglip2-base-patch16-224`, `Alibaba-NLP/gme-Qwen2-VL-2B-Instruct`, `openai/clip-vit-large-patch14`) 은 HF cache 에서 자동 download.
+
+Raw 결과 JSON (44 rows × eval / train / summary) 은 `eval/results/experiments/*/` 에 commit 되어 있음 → `pipeline.aggregate_results` 로 재집계 가능.
+
+---
+
+## Citation
+
+```
+@misc{dlproject2026elementgraph,
+  title  = {Element Graph for Academic Figure Retrieval:
+            Graded Supervision and Encoder-agnostic Score Propagation},
+  author = {Lee, Jaehyeon and Lee, Seoyeon and Jun, Suhyeon and Kim, Minjun},
+  year   = {2026},
+  note   = {DL project, KAIST},
+  url    = {https://github.com/monkcat/dl_project}
+}
+```
+
+License: MIT (code). Backbone models / datasets 은 원본 license 유지.
