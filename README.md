@@ -195,7 +195,7 @@ Raw 결과 JSON (44 rows × eval / train / summary) 은 `eval/results/experiment
             Graded Supervision and Encoder-agnostic Score Propagation},
   author = {Lee, Jaehyeon and Lee, Seoyeon and Jun, Suhyeon and Kim, Minjun},
   year   = {2026},
-  note   = {DL project, KAIST},
+  note   = {DL project, POSTECH},
   url    = {https://github.com/monkcat/dl_project}
 }
 ```
