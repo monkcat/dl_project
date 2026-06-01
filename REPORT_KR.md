@@ -558,38 +558,210 @@ Paired bootstrap (1,000 resample), per-query metric difference의 95% CI. p < 0.
 
 ## 7. Results
 
-*Pending. Week 3-4 학습 + ablation 후 채워짐.*
+*최종 run: 2026-05-30 ~ 06-01. 43 row (42 trained + GME zero-shot) + (h) checkpoint propagation sub-ablation 21 variant. 분석 파이프라인 5단계(aggregate → plot → re-eval → stat_test → diagram) 완료. 집계 원본: `eval/results/experiments/SUMMARY.md`, 통계: `eval/results/figures/STAT_TESTS.md`, digest/CSV: `eval/results/figures/`.*
 
-- **§7.1** Main retrieval results: ablation rows (a)–(j) × {SciEGQA, MMDocIR, SPIQA test-A} × {Hit@5, Hit@10, MRR, Coverage@10}
-- **§7.2** Baseline comparison: Tier 1 head-to-head, Tier 3 contextual, Tier 4 complementarity
-- **§7.3** Negative controls: (m)–(p)
-- **§7.4** Sub-ablation: per-facet α, λ sweep, propagation α/T
-- **§7.5** Modality gap measurements: caption-figure cosine before/after FT
-- **§7.6** Statistical significance: paired bootstrap CI
+### 7.0 실험 구성 메모 (row naming, 실제 run)
+
+- §6.3 설계 표의 row (i)/(j)/(l)은 **별도 학습 row가 아니라 추론 시점 variant**로 실현되었다. 모든 trained row에 대해 `enc only`(propagation 없음)와 `full α=0.3 T=2`(weighted-diffusion propagation) 두 variant를 평가한다.
+  - 설계상의 **(j) Full system** = `(h) full α=0.3 T=2`, **(i)** = `(a) full α=0.3 T=2`, **(l) encoder-agnostic** = `(k=GME) full α=0.3 T=2`.
+- 모든 평가는 per-doc pool. 지표: R@5/R@10, MRR, Coverage@10(Cov), PerfectSet@10(Pf), cross-page hit(Xpg, 멀티페이지 GT에서만).
+- **학습은 SPIQA train 단독.** 따라서 SPIQA test-A = in-domain, **SciEGQA·MMDocIR = zero-shot domain transfer**. 이 사실이 결과 전체를 지배한다.
+
+### 7.1 Main ablation (Tier 1, rows a–h + k=GME)
+
+**SPIQA test-A** (in-domain, single-positive)
+
+| Row | enc-only R@10 / MRR | +prop R@10 / MRR |
+|---|---|---|
+| (a) InfoNCE baseline | 84.4 / 32.8 | 69.8 / 29.3 |
+| (b) +GPE type | 82.1 / 31.7 | 69.7 / 28.6 |
+| (c) +GPE type+role | 83.8 / 32.3 | 69.2 / 29.1 |
+| (d) +GPE full | 79.9 / 29.2 | 66.2 / 27.4 |
+| (e) GRCL, no GPE | **87.1 / 38.2** | 70.3 / 30.4 |
+| (f) GRCL + GPE | 85.1 / 35.2 | 70.9 / 29.8 |
+| (g) GRCL + GPE + L_cov | **87.1 / 39.0** | 70.0 / 30.6 |
+| (h) Full method | 86.9 / 37.4 | 70.7 / 30.0 |
+| (k) GME zero-shot | 58.3 / 33.1 | **84.4 / 63.3** |
+
+읽히는 패턴: ① GRCL이 유일하게 의미 있는 상승 요인(a→e: R@10 +2.7, MRR +5.4). ② GPE는 손해(a→d로 단조 감소, e→f로도 하락). ③ L_cov/L_cons는 사실상 무변화(e≈g≈h). ④ trained SigLIP에서 propagation은 **일관되게 손해**(86.9→70.7). ⑤ 그러나 **GME에서는 propagation이 극적으로 도움**(58.3→84.4, MRR 33.1→63.3) — §8 H5.
+
+**SciEGQA** (zero-shot, multi-positive)
+
+| Row | enc-only R@10 / Xpg | +prop R@10 / Xpg |
+|---|---|---|
+| (a) | 0.9 / 24.1 | 1.3 / 16.1 |
+| (e) | 1.0 / 26.6 | 1.5 / 17.4 |
+| (h) | 1.0 / 26.9 | 1.4 / 16.5 |
+| (k) GME | **2.3 / 51.3** | 2.0 / 37.3 |
+
+**MMDocIR** (zero-shot, multi-positive)
+
+| Row | enc-only R@10 | +prop R@10 |
+|---|---|---|
+| (a) | 2.0 | 3.7 |
+| (e) | 2.5 | 3.8 |
+| (h) | 2.4 | 4.1 |
+| (k) GME | **18.9** | 15.7 |
+
+OOD에서 trained SigLIP은 전부 R@10 ≈ 0.9–1.1%(SciEGQA) / 2.0–2.6%(MMDocIR)로 붕괴하며 row 간 차이는 노이즈 수준. 반면 GME zero-shot은 2.3% / 18.9%로 압도. trained 모델에서는 propagation이 OOD에서 **소폭 도움**(MMDocIR 2.4→4.1), GME에서는 **손해**(18.9→15.7) — 정확히 SPIQA와 반대 방향(§8 통합 해석).
+
+### 7.2 Negative controls (Tier 2, rows m–p) — 가장 깨끗한 결과
+
+SPIQA test-A R@10 (enc-only):
+
+| Row | 변경 | R@10 | MRR | vs (h) |
+|---|---|---|---|---|
+| (m) shuffled section_role | role 라벨 doc 내 셔플 | 86.3 | 38.7 | ≈ |
+| (n) random section_role | role 라벨 uniform 랜덤 | 85.1 | 37.6 | ≈ |
+| (o) no query PE dropout | L_cons 입력 제거 | 87.1 | 38.0 | ≈(약간↑) |
+| (p) encoder swap CLIP-L/14 | 백본 교체 | **88.1** | 36.2 | ↑ |
+| (h) Full method | — | 86.9 | 37.4 | — |
+
+- **(m)/(n)이 (h)와 통계적으로 구분 불가** → `section_role` 신호가 학습에 실질적으로 사용되지 않음. GPE role facet 무용을 직접 증명.
+- **(o) ≈ (h)** → query PE dropout(=L_cons의 핵심 입력)을 꺼도 차이 없음 → train/inference mismatch 효과 미측정.
+- **(p) CLIP-L/14가 (h) 능가**(SPIQA 88.1, MMDocIR 4.2 vs 2.4) → gain의 출처가 우리 방법이 아니라 **백본**임을 시사. §6.4 음성통제 통과 기준((m),(n),(o) 유의 저하)은 **불충족**.
+
+### 7.3 Sub-ablation sweeps (Tier 3, 25 rows)
+
+전체 8-열 표는 `SUMMARY.md` §7.3, master 표는 아래 §7.7 참조. SPIQA R@10(enc-only) 기준 요약:
+
+| 패밀리 | 결과 (SPIQA R@10) | 판정 |
+|---|---|---|
+| γ (GRCL 2-hop decay) | 0.3=83.9, **0.5(h)=86.9**, 0.7=85.7 | 0.5 적정, 둔감 |
+| λ_cov | 0.0/0.1/0.5/1.0 = 85.4/87.1/87.1/85.7 | **무변화** |
+| λ_cons | 0.0~1.0 = 86.0~86.9 | **무변화** |
+| LoRA rank | r4=83.0, **r8(h)=86.9**, r16=86.2, r32=84.7 | r8 적정, 키워도 이득 없음 |
+| learning rate | 1e-5=79.9, 3e-5(h)=86.9, **1e-4=88.6** | ★lr이 최대 레버 |
+| τ | 0.05/0.07/0.10 = 85.6/86.9/86.2 | 둔감 |
+| anchor kind | caption=86.0, **refer=74.9(붕괴)**, nlqa=84.8, mixed(h)=86.9 | mixed 적정 |
+| edge type isolation | caption_of=83.5, **refer_to=90.4**, contains=88.4 | ★refer_to가 최강 signal |
+| visual tokens | 16=83.0, 64=84.7, **196(h)=86.9** | 늘려도 이득 없음 |
+
+전 데이터셋에서 일관 상승한 변경은 **lr_1e4**(SPIQA 88.6 / SciEGQA 1.6 / MMDocIR 4.3)와 **edge_refer_to**(SPIQA **90.4** / MMDocIR **5.7**, 둘 다 단일 최고치) 두 가지뿐. 손실항·구조 HP는 SPIQA에서 ±1–2 진동(=seed 노이즈와 구분 불가). anchor_refer(74.9)·lr_1e5(79.9)는 명확한 실패.
+
+### 7.4 Follow-up extensions (Tier 4, 5 rows)
+
+| Row | SPIQA R@10/MRR | SciEGQA R@10 | MMDocIR R@10 |
+|---|---|---|---|
+| h + best-HP combo | **88.0 / 42.2** | 1.5 | 4.2 |
+| h + best-HP combo, **16k steps** | 85.9 / 39.7 | **1.7** | **4.4** |
+| h + stronger GPE init | 85.1 / 34.9 | 1.0 | 2.4 |
+| h (seed=43) | 85.6 / 35.9 | 1.2 | 2.2 |
+| h (seed=44) | 83.0 / 35.0 | 1.0 | 2.5 |
+| (h) seed=42 | 86.9 / 37.4 | 1.0 | 2.4 |
+
+- **best-HP combo가 종합 최고 학습 모델**(SPIQA 88.0, MRR 42.2). 16k step은 in-domain 소폭↓·OOD 소폭↑ (과적합 vs 전이 trade-off).
+- **stronger GPE init 무효**(85.1 < h) → GPE 무용 재확인.
+- ⚠️ **seed 분산이 큼**: 86.9 / 85.6 / 83.0 → SPIQA R@10 **±~4pt**. 메인 ablation의 유의 효과(§7.6 h−a = +2.5pp)가 이 분산보다 작다 — 해석 시 핵심 경고.
+
+### 7.5 Propagation sub-ablation on (h) — 3 regime × HP sweep (21 variant)
+
+**SPIQA (in-domain)** — 모든 regime에서 손해:
+
+| variant | R@10 |
+|---|---|
+| enc only | **86.9** |
+| weighted-diffusion full α0.3 T1 | 78.7 |
+| full α0.1 T2 | 74.3 |
+| base / base+role / base+visual / full (α0.3 T2) | **70.7 (4종 모두 동일)** |
+| full α0.7 T2 | 65.5 |
+| uniform α0.3 T2 | 67.0 |
+| PPR α0.15 / α0.85 | 63.5 / 73.4 |
+
+→ **modifier 설계(base/role/visual/full)가 결과에 영향 0** (single source of truth schema의 정교함이 in-domain에서 무의미). α↓·T↓일수록 enc-only에 가까워 덜 나쁨.
+
+**MMDocIR (OOD)** — 도움:
+
+| variant | R@10 |
+|---|---|
+| enc only | 2.4 |
+| uniform / weighted / PPR 대부분 | 3.9 – 4.2 |
+
+→ 약한 인코더 + multi-positive에서는 그래프 구조가 weak prior로 작동. SciEGQA는 1.0→1.3~1.5로 미미한 상승.
+
+### 7.6 Statistical significance (paired bootstrap, 1000 resample, Coverage@10, no-prop)
+
+| 비교 | SPIQA Δ / 95% CI / p | MMDocIR p | SciEGQA p | 유의 |
+|---|---|---|---|---|
+| **h − a** | +0.0255 / [+0.0015, +0.0511] / **0.042** | 0.514 | 0.538 | SPIQA만 ✓ |
+| h − e | −0.0015 / [−0.0165, +0.0135] / 0.97 | 0.918 | 0.984 | ✗ |
+| f − e | −0.0195 / [−0.0435, +0.0045] / 0.12 | 0.444 | 0.278 | ✗ |
+| g − f | +0.0195 / [−0.0045, +0.0435] / 0.14 | 0.262 | 0.308 | ✗ |
+
+유의한 효과는 **h−a(전체 파이프라인 vs InfoNCE), SPIQA에서만** 하나뿐. GPE 추가(f−e)·coverage 추가(g−f)는 비유의. ⚠️ 유의 효과크기(+2.5pp)가 seed 분산(±4pp, §7.4)보다 작다.
+
+### 7.7 종합 — R@10 (no propagation), 전 row × 전 dataset
+
+| Row | SPIQA | SciEGQA | MMDocIR | | Row | SPIQA | SciEGQA | MMDocIR |
+|---|---|---|---|---|---|---|---|---|
+| a | 84.4 | 0.9 | 2.0 | | edge_refer_to | **90.4** | 1.3 | **5.7** |
+| b | 82.1 | 0.9 | 2.5 | | edge_contains | 88.4 | 1.4 | 2.1 |
+| c | 83.8 | 1.1 | 2.3 | | edge_caption_of | 83.5 | 1.3 | 3.1 |
+| d | 79.9 | 1.1 | 2.4 | | gamma_03 | 83.9 | 0.9 | 2.5 |
+| e | 87.1 | 1.0 | 2.5 | | gamma_07 | 85.7 | 1.2 | 2.4 |
+| f | 85.1 | 1.1 | 2.3 | | cov_00/01/05/10 | 85.4–87.1 | ~1.0 | ~2.5 |
+| g | 87.1 | 1.0 | 2.6 | | cons_00/01/03/10 | 85.7–86.9 | ~1.0 | ~2.4 |
+| h | 86.9 | 1.0 | 2.4 | | lora_r4/16/32 | 83.0/86.2/84.7 | 1.2/1.4/1.3 | 2.1/3.1/2.2 |
+| **gme** | 58.3 | **2.3** | **18.9** | | lr_1e5 / lr_1e4 | 79.9 / **88.6** | 1.3 / 1.6 | 1.4 / 4.3 |
+| m | 86.3 | 0.9 | 2.4 | | tau_005 / tau_010 | 85.6 / 86.2 | 1.0 | 2.6 / 2.2 |
+| n | 85.1 | 1.2 | 3.2 | | anchor_caption/refer/nlqa | 86.0/74.9/84.8 | 1.3/1.4/1.4 | 1.5/1.8/2.2 |
+| o | 87.1 | 1.0 | 2.5 | | tokens_016 / tokens_064 | 83.0 / 84.7 | 1.1 / 1.0 | 2.4 / 2.6 |
+| p | 88.1 | 1.5 | 4.2 | | h_best_combo / _16k | 88.0 / 85.9 | 1.5 / 1.7 | 4.2 / 4.4 |
+| | | | | | h_gpe_strong | 85.1 | 1.0 | 2.4 |
+| | | | | | h_seed_43 / _44 | 85.6 / 83.0 | 1.2 / 1.0 | 2.2 / 2.5 |
+
+*(전체 8-열 metric 표 및 propagation variant별 수치는 `eval/results/experiments/SUMMARY.md` §7.1–§7.6, 그림은 `eval/results/figures/`.)*
 
 ---
 
 ## 8. Discussion
 
-*Pending. 검증할 가설:*
+### 8.1 가설 검증 결과
 
-- **H1**: GRCL이 single-positive InfoNCE 대비 Coverage@10 큰 폭 향상 — graded supervision 가설 직접 test
-- **H2**: GPE가 encoder-agnostic moderate gain. encoder swap (CLIP-L/14)에서도 gain 유지
-- **H3**: $L_\text{cons}$가 train/inference mismatch 대부분 해소 — (o)가 (j) 대비 유의 저하
-- **H4**: Graph propagation은 GRCL 위에 additive: (h) → (j) gain이 cross-page case에서 가장 큼
-- **H5**: $(k) \to (l)$이 양수 $\Delta$ — graph propagation이 compact encoder 너머로 일반화
+| 가설 | 판정 | 근거 |
+|---|---|---|
+| **H1** GRCL > InfoNCE (Coverage@10 큰 폭) | **부분 인정** | SPIQA Cov@10 84.4→87.1, MRR 32.8→38.2; h−a p=0.042로 유일하게 유의. 단 "큰 폭"은 아니고(~2.5pp) OOD에선 비유의. MRR 개선(+5.4)이 더 뚜렷 → "상위 랭킹 품질 개선"으로 봐야 정확. |
+| **H2** GPE encoder-agnostic moderate gain | **기각** | GPE는 SigLIP에서 음의 효과(a→d 84.4→79.9, e→f 87.1→85.1). m/n 음성통제가 role facet 무용 입증. CLIP-swap (p)의 우위는 GPE가 아닌 백본 효과. |
+| **H3** L_cons가 mismatch 대부분 해소 | **기각** | (o) no-PE-dropout = 87.1 ≥ (h) 86.9. λ_cons sweep 평평(86.0~86.9). mismatch 완화 효과 측정 안 됨. |
+| **H4** propagation은 GRCL 위에 additive (cross-page에서 최대) | **기각(in-domain)** | SigLIP에서 propagation은 SPIQA 86.9→70.7로 큰 손해, modifier 4종 결과 동일(70.7). additive 아님. OOD에선 소폭 도움(2.4→4.1)이라 **조건부**. |
+| **H5** (k)→(l) 양수 Δ — propagation이 compact encoder 너머로 일반화 | **인정(SPIQA)** | GME 58.3→84.4, MRR 33.1→**63.3** — 전 실험 통틀어 가장 큰 양수 효과. 단 OOD(MMDocIR 18.9→15.7)에선 음수. |
 
-**예상 negative outcome** (reportable):
-- GRCL이 InfoNCE 못 이김 → 학술 도메인 graded supervision 한계
-- 모든 $\alpha_\text{facet} \approx 0$ → PE redundant, encoder가 자체 학습
-- Shuffled PE (m)이 (j) 매치 → PE는 regularization, 실제 structure 주입 아님
-- Propagation이 어떤 dataset에서 underperform → 그 domain의 edge precision 부족, per-edge analysis 따라옴
+### 8.2 통합 해석 — propagation은 "약한 base의 보완재"
+
+두 인코더의 propagation 효과가 정확히 **대칭**으로 나타난다:
+
+| | base가 강한 dataset | base가 약한 dataset |
+|---|---|---|
+| **SigLIP-h** | SPIQA(86.9) → prop **손해**(70.7) | MMDocIR(2.4) → prop **도움**(4.1) |
+| **GME** | MMDocIR(18.9) → prop **손해**(15.7) | SPIQA(58.3) → prop **도움**(84.4) |
+
+→ graph propagation은 **base retriever가 해당 데이터셋에서 약할 때 smoothing prior로 도움, 강할 때는 정답 점수를 이웃으로 흩뜨려 손해**. "encoder-agnostic additive gain"(H4/H5의 원래 강한 형태)은 성립하지 않고, **"base가 약한 경우에 한해 generalize"라는 약화된 형태**로만 성립. modifier 설계(role/visual boost)의 정교함은 in-domain에서 영향 0이었으므로, 효용의 원천은 정교한 가중치가 아니라 **그래프 구조의 존재 자체**다.
+
+### 8.3 가장 큰 실증 메시지 — 도메인 전이 실패와 백본의 지배
+
+- 200M SigLIP은 in-domain(SPIQA 87%)에서는 GME(58%)를 압도하지만, **zero-shot OOD에서 붕괴**(SciEGQA 1%, MMDocIR 2.4%, 일부 chance 이하). 학습이 SPIQA 단독이었던 것이 직접 원인으로 보인다.
+- 반대로 2B retrieval-tuned GME는 OOD(MMDocIR 18.9%)를 지배. §2.3 motivation("compact dual-encoder는 학술 visual element retrieval에 실패, 큰 retrieval-tuned MLLM이 해결")이 학습 후에도 **OOD 영역에서 재확인**됐다.
+- 음성통제 (p) CLIP-L/14가 본 방법을 능가한 것까지 합치면, 본 실험에서 retrieval 품질을 실제로 움직인 레버는 **그래프 방법론보다 백본·학습률**이었다.
+
+### 8.4 한계
+
+1. **단일 seed 메인 비교**: 유일한 유의 효과(+2.5pp)가 seed 분산(±4pp)보다 작다. 메인 row의 다중 seed(3–5) 재실행이 필요.
+2. **OOD가 chance 수준**: SciEGQA recall이 랜덤 이하 구간 존재 → 전이 실패의 정상 동작 한계로 명시.
+3. **학습 데이터가 SPIQA 단독**: multi-dataset 학습 미실시가 OOD 붕괴의 직접 원인일 수 있음.
 
 ---
 
 ## 9. Conclusion
 
-*Placeholder. Results 후 작성.*
+학술 typed element graph를 retriever 학습 supervision(GRCL)과 추론 propagation에 이중 활용하는 가설을 SigLIPv2 백본에서 43-row ablation으로 검증했다. 결과는 **대체로 부정적이되 몇 가지 명확한 시그널**을 남겼다:
+
+1. **GRCL은 in-domain에서 측정 가능한 이득**을 준다(SPIQA R@10 84.4→87.1, MRR 32.8→38.2, h−a p=0.042). 효과는 작고 상위 랭킹(MRR) 개선에 집중된다.
+2. **그래프 propagation은 조건부로만 유용**하다 — base retriever가 약할 때 smoothing prior로 작동하며, GME에 얹었을 때 SPIQA에서 R@10 58.3→84.4, MRR 33.1→63.3의 가장 큰 단일 향상을 보였다(encoder-agnostic의 약화된 형태 확인).
+3. **GPE·L_cov·L_cons는 효과 없음**, 음성통제(shuffled/random role)가 이를 깨끗하게 반증했다.
+4. **실제 성능 레버는 백본·학습률·refer_to edge**였다(lr 1e-4 → SPIQA 88.6, refer_to-only → 90.4, CLIP-L/14 swap → 88.1).
+5. **작은 도메인특화 인코더는 OOD 전이에 실패**하고, 큰 retrieval-tuned MLLM(GME)이 OOD를 지배한다 — §2.3 motivation 재확인.
+
+후속 1순위: 메인 row 다중 seed 재현 + `lr=1e-4 + GRCL(refer_to 중심) + GPE off + propagation off` 조합 + multi-dataset(SciEGQA/MMDocIR 포함) 학습으로 전이 실패 직접 공략. 자세한 수치는 §7 및 `eval/results/experiments/SUMMARY.md` 참조.
 
 ---
 

@@ -52,6 +52,18 @@ if command -v conda >/dev/null 2>&1; then
 fi
 echo "[INFO] python: $(which python)" >&2
 
+# ── gme row needs its own interpreter: GME-Qwen2-VL's custom code pins
+#    transformers<4.52, incompatible with the suite's transformers. The
+#    .venv_gme venv (system-site-packages + transformers==4.51.3) isolates it.
+#    Override with GME_PY=/path/to/python if needed.
+GME_PY="${GME_PY:-$REPO/.venv_gme/bin/python}"
+if [ -x "$GME_PY" ]; then
+    echo "[INFO] gme interpreter: $GME_PY" >&2
+else
+    echo "[WARN] gme venv not found at $GME_PY — gme row will use default python (likely fails)" >&2
+    GME_PY="python"
+fi
+
 # ── Sanity-check required data files (fail fast, don't waste hours) ──
 # Exit codes from pipeline.sanity_check:
 #   0 = all green, 1 = warnings (still launchable), 2 = fatal
@@ -140,10 +152,14 @@ already_done () {
 }
 
 run_one () {
-    # stdout: the PID of the launched background process (empty if skipped)
+    # Sets global LAUNCHED_PID to the PID of the launched background process
+    # (empty if skipped/dry-run). Must launch in the main shell — NOT via
+    # command substitution — or the bg process gets reparented out of the
+    # launcher and `wait` fails with "not a child of this shell".
     # stderr: human-readable status line
     local row="$1" gpu="$2"
     local logf="logs/${row}.log"
+    LAUNCHED_PID=""
     if already_done "$row"; then
         echo "[GPU $gpu] SKIP $row (already done)" >&2
         return 0
@@ -152,10 +168,12 @@ run_one () {
     if [ "$DRY_RUN" = "1" ]; then
         return 0
     fi
+    local py="python"
+    if [ "$row" = "gme" ]; then py="$GME_PY"; fi
     CUDA_VISIBLE_DEVICES="$gpu" \
-        python -m pipeline.run_experiment --config "$row" \
+        "$py" -m pipeline.run_experiment --config "$row" \
         > "$logf" 2>&1 &
-    echo $!
+    LAUNCHED_PID=$!
 }
 
 wait_pids () {
@@ -190,10 +208,10 @@ while [ $i -lt $total ]; do
     echo "  Wave $wave   GPU 0: $row0   GPU 1: ${row1:-<idle>}" >&2
     echo "════════════════════════════════════════════════════════════════" >&2
 
-    pid0=$(run_one "$row0" 0)
+    run_one "$row0" 0; pid0="$LAUNCHED_PID"
     pid1=""
     if [ -n "$row1" ]; then
-        pid1=$(run_one "$row1" 1)
+        run_one "$row1" 1; pid1="$LAUNCHED_PID"
     fi
     wait_pids "$pid0" "$pid1"
     echo "[Wave $wave] complete" >&2

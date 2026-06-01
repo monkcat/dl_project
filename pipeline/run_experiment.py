@@ -44,6 +44,8 @@ def main():
     ap.add_argument("--device", type=str, default="cuda")
     ap.add_argument("--max_queries", type=int, default=None,
                     help="cap on eval queries (debug)")
+    ap.add_argument("--dump_per_query", action="store_true",
+                    help="forward to eval_full: also write eval.perquery.json (for stat tests)")
     args = ap.parse_args()
 
     cfg = get_config(args.config)
@@ -110,12 +112,16 @@ def main():
     cmd += ["--lora_rank", str(cfg.get("lora_rank", 8))]
     cmd += ["--lora_alpha", str(cfg.get("lora_alpha", 16))]
     cmd += ["--hf_id", cfg.get("hf_id", "google/siglip2-base-patch16-224")]
+    if cfg.get("encoder_kind"):
+        cmd += ["--encoder_kind", cfg["encoder_kind"]]
     if cfg.get("gpe_facets"):
         cmd += ["--gpe_facets", cfg["gpe_facets"]]
     if cfg.get("tokens_per_visual"):
         cmd += ["--tokens_per_visual", str(cfg["tokens_per_visual"])]
     if args.max_queries:
         cmd += ["--max_queries", str(args.max_queries)]
+    if args.dump_per_query:
+        cmd += ["--dump_per_query"]
 
     available = [
         ds_id for ds_id, dc in EVAL_DATASETS.items()

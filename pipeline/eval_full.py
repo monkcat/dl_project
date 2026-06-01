@@ -97,7 +97,14 @@ def load_queries(cfg: dict) -> list[dict]:
 # Encoder loading
 # ────────────────────────────────────────────────────────────────────────────
 
-def load_encoder(args) -> ElementTokenEncoder:
+def load_encoder(args):
+    # GME-Qwen2-VL is a decoder MLLM (single pooled embedding), not a dual
+    # tower — route it to the dedicated adapter instead of ElementTokenEncoder.
+    kind = (getattr(args, "encoder_kind", "") or "").lower()
+    if kind == "gme" or "gme" in (args.hf_id or "").lower():
+        from pipeline.gme_encoder import GMEEncoder
+        return GMEEncoder(hf_id=args.hf_id, device=args.device).eval()
+
     facets = tuple(args.gpe_facets.split(",")) if getattr(args, "gpe_facets", None) else ("type", "role", "depth", "pos")
     tpv = getattr(args, "tokens_per_visual", 0) or None
     enc = ElementTokenEncoder(
@@ -257,8 +264,14 @@ def eval_dataset(
     ds_cfg: dict,
     inference_variants: dict[str, dict],
     args,
+    perquery_sink: dict | None = None,
 ) -> dict[str, dict]:
-    """Returns {variant_name: {metric: aggregate_value, ...}}."""
+    """Returns {variant_name: {metric: aggregate_value, ...}}.
+
+    If `perquery_sink` is a dict, it is filled with the raw per-query metric
+    lists {variant: {metric: [v0, v1, ...]}} (needed for paired-bootstrap
+    significance tests). Off by default → zero effect on the normal path.
+    """
     device = args.device
     print(f"\n[eval] {ds_cfg['name']}")
 
@@ -372,6 +385,12 @@ def eval_dataset(
         out[var_name] = {k: sum(v) / max(1, len(v)) for k, v in per_q.items()}
         out[var_name]["n_queries"] = len(next(iter(per_q.values()))) if per_q else 0
 
+    if perquery_sink is not None:
+        perquery_sink[ds_cfg["name"]] = {
+            var_name: {k: list(v) for k, v in per_q.items()}
+            for var_name, per_q in aggregates.items()
+        }
+
     print(f"  done in {time.time() - t0:.0f}s")
     return out
 
@@ -384,6 +403,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ckpt", type=str, default=None, help="encoder state_dict path; omit for zero-shot")
     ap.add_argument("--hf_id", type=str, default="google/siglip2-base-patch16-224")
+    ap.add_argument("--encoder_kind", type=str, default="",
+                    help="'gme' routes to the GME-Qwen2-VL adapter; empty = ElementTokenEncoder")
     ap.add_argument("--proj_dim", type=int, default=128)
     ap.add_argument("--lora_rank", type=int, default=8)
     ap.add_argument("--lora_alpha", type=int, default=16)
@@ -399,6 +420,9 @@ def main():
                     help="cap on queries per dataset (debug)")
     ap.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--out", type=str, required=True)
+    ap.add_argument("--dump_per_query", action="store_true",
+                    help="also write <out>.perquery.json with raw per-query metric lists "
+                         "(for paired-bootstrap significance tests)")
     args = ap.parse_args()
 
     print(f"device: {args.device}")
@@ -406,8 +430,10 @@ def main():
 
     inference_variants = {v: INFERENCE_VARIANTS[v] for v in args.variants}
     results: dict[str, dict] = {}
+    perquery: dict[str, dict] = {} if args.dump_per_query else None
     for ds_id in args.datasets:
-        results[ds_id] = eval_dataset(encoder, EVAL_DATASETS[ds_id], inference_variants, args)
+        results[ds_id] = eval_dataset(encoder, EVAL_DATASETS[ds_id], inference_variants, args,
+                                      perquery_sink=perquery)
 
     out_path = REPO / args.out
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -416,6 +442,11 @@ def main():
         "results": results,
     }, indent=2))
     print(f"\nsaved → {out_path}")
+
+    if perquery is not None:
+        pq_path = out_path.with_suffix(".perquery.json")
+        pq_path.write_text(json.dumps(perquery))
+        print(f"saved per-query → {pq_path}")
 
     # Pretty print
     print("\n=== Summary ===")

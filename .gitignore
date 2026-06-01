@@ -77,3 +77,6 @@ eval/results/
 *.bak
 _scratch/
 TODO.local.md
+
+# project-specific venv
+.venv_gme/
