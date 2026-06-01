@@ -132,12 +132,6 @@ R@10 +2.7pp (+3.2% relative), **MRR +5.4pp (+16.5% relative)**.
 
 Paired bootstrap (1000 resamples) on SPIQA Coverage@10: $\Delta = +0.0255$, 95% CI $[+0.0015, +0.0511]$, **p = 0.042**.
 
-![R@10 across paper rows on SPIQA test-A](eval/results/figures/paper/spiqa_recallat10.png)
-*Figure 1. Recall@10 on SPIQA test-A across the eight rows reported in this paper. Highlighted bars: `refer_to`-only GRCL (90.4, best trained) and GME + graph propagation (84.4).*
-
-![MRR across paper rows on SPIQA test-A](eval/results/figures/paper/spiqa_mrr.png)
-*Figure 2. MRR on SPIQA test-A. graded supervision 의 효과가 top-ranking 품질에 집중되어 있어 MRR 의 상대 향상이 R@10 의 5배. GME + propagation 의 MRR (63.3) 이 우리 trained model 의 best MRR (42.6) 보다 21pp 높음.*
-
 MRR 상대 향상이 R@10 의 5배라는 점은 GRCL 효과가 **top ranking 품질** — 정답이 얼마나 top 으로 끌어올려지는가 — 에 집중되어 있음을 의미한다. binary InfoNCE 는 candidate pool 12 element 중 1개만 positive, 11개를 균등 negative 로 처리하는 반면 GRCL 의 graded target 은 12 element 모두에 graph distance 기반 분포를 할당하여 retriever 가 세밀한 ordering 을 학습하도록 유도한다.
 
 ### 4.2 `refer_to` edge dominates graph signal
@@ -198,9 +192,6 @@ GME 가 propagation 후 R@10 84.4 로 우리 학습된 SigLIP `h_best_combo` 의
 | **(C) Personalized PageRank** | α=0.30 (teleport) | 83.3 | 59.1 |
 | **(C) Personalized PageRank** | α=0.50 | 83.2 | 58.6 |
 
-![Three propagation regimes on GME](eval/results/figures/paper/spiqa_gme_prop_regimes.png)
-*Figure 3. 세 propagation regime (uniform diffusion / weighted diffusion / PPR) 이 GME 위에서 동등 효과를 낸다. R@10 83-85%, MRR 59-63%. 단순한 structure-only uniform 과 정교한 weighted modifier, teleport-based PPR 의 결과가 거의 같다 — graph 구조 자체가 효용 원천.*
-
 세 regime 모두 GME 위에서 **R@10 83-85%**, **MRR 59-63%** 로 동등 효과. 정교한 modifier 를 사용하는 weighted diffusion (B) 과 단순한 structure-only uniform diffusion (A), 그리고 teleport-based PPR (C) 가 비슷한 향상을 낸다.
 
 **해석**: graph propagation 의 효용은 specific algorithm 이나 정교한 weight 디자인 (BASE × role × visual modifier) 이 아니라 **graph 구조 자체** 에서 온다. modifier 가 무한히 정교해도, uniform structure-only 와 동등 효과 — 본 paper 의 핵심 finding 중 하나다.
@@ -220,17 +211,36 @@ GME 가 propagation 후 R@10 84.4 로 우리 학습된 SigLIP `h_best_combo` 의
 
 **Deployment 지침**: graph propagation 을 base retriever 의 성능 보완 수단으로 사용. strong fine-tuned encoder 가 in-domain 에 적용된 경우 비활성화, zero-shot / out-of-distribution / 약한 backbone 환경에서 활성화.
 
-### 4.7 Summary
+### 4.7 Master comparison table
 
-| Row | Description | R@10 | MRR |
-|---|---|---|---|
-| (a) | InfoNCE baseline | 84.4 | 32.8 |
-| **(e)** | **GRCL** | **87.1** | **38.2** |
-| **`edge_refer_to`** | **GRCL on `refer_to` only** | **90.4** | 41.9 |
-| **`lr_1e4`** | **lr=1e-4** | **88.6** | **42.6** |
-| `h_best_combo` | lr=1e-4 + τ=0.10 + λ_cov=0.5 | 88.0 | 42.2 |
-| (gme) | GME zero-shot | 58.3 | 33.1 |
-| **(gme) + propagation** | **GME + graph propagation** | **84.4** | **63.3** |
+**Table 1.** SPIQA test-A retrieval 품질 — 본 paper 의 모든 핵심 결과 한 표 정리. 굵게 표시한 값은 column 별 최고 (또는 본 paper 의 핵심 finding). bracket 안은 row (a) 또는 base retriever 대비 $\Delta$.
+
+| # | Setup | R@5 | R@10 | MRR | Δ R@10 | Δ MRR |
+|---|---|---|---|---|---|---|
+| | **— Group A: trained dual-encoder (SigLIPv2 + LoRA) —** | | | | | |
+| 1 | (a) InfoNCE baseline | — | 84.4 | 32.8 | — | — |
+| 2 | (e) **GRCL** *(p = 0.042 vs (a))* | — | 87.1 | 38.2 | +2.7 | +5.4 |
+| 3 | `edge_refer_to` — GRCL on `refer_to` edges only | — | **90.4** | 41.9 | **+6.0** | +9.1 |
+| 4 | `lr_1e4` — GRCL, lr=1e-4 | — | 88.6 | **42.6** | +4.2 | **+9.8** |
+| 5 | `h_best_combo` — lr=1e-4 + τ=0.10 + λ_cov=0.5 | — | 88.0 | 42.2 | +3.6 | +9.4 |
+| 6 | (p) CLIP-L/14 backbone swap + GRCL | — | 88.1 | 36.2 | +3.7 | +3.4 |
+| | **— Group B: external retrieval-tuned MLLM (GME-Qwen2-VL-2B, zero-shot) —** | | | | | |
+| 7 | (gme) GME zero-shot, no propagation | 47.1 | 58.3 | 33.1 | — | — |
+| 8 | (gme) + **uniform** diffusion (α=0.5, T=2) | — | 83.9 | 62.1 | +25.6 | +29.0 |
+| 9 | (gme) + **weighted** diffusion (α=0.3, T=2, default) | **78.2** | 84.4 | 63.3 | +26.1 | +30.2 |
+| 10 | (gme) + weighted diffusion (α=0.3, T=3) | — | **84.5** | **63.4** | +26.2 | +30.3 |
+| 11 | (gme) + **PPR** (α=0.30 teleport) | — | 83.3 | 59.1 | +25.0 | +26.0 |
+| 12 | (gme) + PPR (α=0.50) | — | 83.2 | 58.6 | +24.9 | +25.5 |
+
+**Key observations**:
+
+- **GRCL > InfoNCE** (rows 1 vs 2): graded supervision 이 binary 대비 R@10 +2.7pp, MRR +5.4pp 향상. paired-bootstrap p = 0.042 (§4.1).
+- **`refer_to` 단독이 in-domain 최강** (row 3): 5종 edge 균등 활용 default 보다 +3.5pp R@10. explicit semantic reference 가 가장 informative graph signal (§4.2).
+- **HP optimization** (rows 4, 5): lr 단일 변경 (3e-5 → 1e-4) 이 method ablation 효과와 동일 크기. soft softmax (τ=0.10) 가 graded GRCL target 과 align (§4.3).
+- **Backbone swap** (row 6): CLIP-L/14 로 backbone 만 교체해도 향상 — framework backbone-agnostic.
+- **GME + graph propagation = 본 paper 최대 효과** (rows 8-12 vs 7): MRR 33.1 → 63.3 (거의 2배). 우리 trained SigLIP best (row 4 MRR 42.6) 보다 GME + propagation 의 MRR (63.3) 이 21pp 더 높다.
+- **3 regime 동등 효과** (rows 8, 9-10, 11-12): uniform / weighted / PPR 모두 R@10 83-85%, MRR 59-63% 로 비슷. **graph 구조 자체가 효용 원천, modifier 정교함은 marginal** (§4.5).
+- **Plug-in 으로 trained 의 95% 도달**: GME + propagation R@10 84.4 ≈ row 5 (h_best_combo) 88.0 의 96% — **fine-tuning 없이 100 GPU-hour 학습 결과에 근접**.
 
 ---
 
