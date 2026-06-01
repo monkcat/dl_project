@@ -44,9 +44,6 @@ SPIQA figure-QA benchmark 에서:
 
 본 method 는 세 component 로 구성되며 모두 동일 `BASE_EDGE_WEIGHTS` schema 를 공유한다.
 
-![System architecture](eval/results/figures/system_diagram.png)
-*Figure 1. System overview. 동일 edge weight schema 가 학습 단계의 graph relevance kernel $g(q, e)$ 와 추론 단계의 transition matrix $P$ 를 정의한다.*
-
 ### 2.1 Element graph schema
 
 학술 문서를 6 종 node (`text`, `figure`, `table`, `caption`, `equation`, `section_header`) 와 5 종 typed edge (`caption_of`, `refer_to`, `contains`, `reading_next`, `section_next`) 의 per-document graph $G_d$ 로 표현한다.
@@ -135,11 +132,11 @@ R@10 +2.7pp (+3.2% relative), **MRR +5.4pp (+16.5% relative)**.
 
 Paired bootstrap (1000 resamples) on SPIQA Coverage@10: $\Delta = +0.0255$, 95% CI $[+0.0015, +0.0511]$, **p = 0.042**.
 
-![Recall@10 across ablation rows](eval/results/figures/ablation_recallat10.png)
-*Figure 2. R@10 across selected rows. GRCL (e) consistently above InfoNCE baseline (a); HP optimization and edge isolation push further.*
+![R@10 across paper rows on SPIQA test-A](eval/results/figures/paper/spiqa_recallat10.png)
+*Figure 1. Recall@10 on SPIQA test-A across the eight rows reported in this paper. Highlighted bars: `refer_to`-only GRCL (90.4, best trained) and GME + graph propagation (84.4).*
 
-![MRR across ablation rows](eval/results/figures/ablation_mrr.png)
-*Figure 3. MRR. graded supervision 의 효과가 top-ranking 품질에 집중되어 있어 MRR 의 상대 향상이 R@10 의 5배.*
+![MRR across paper rows on SPIQA test-A](eval/results/figures/paper/spiqa_mrr.png)
+*Figure 2. MRR on SPIQA test-A. graded supervision 의 효과가 top-ranking 품질에 집중되어 있어 MRR 의 상대 향상이 R@10 의 5배. GME + propagation 의 MRR (63.3) 이 우리 trained model 의 best MRR (42.6) 보다 21pp 높음.*
 
 MRR 상대 향상이 R@10 의 5배라는 점은 GRCL 효과가 **top ranking 품질** — 정답이 얼마나 top 으로 끌어올려지는가 — 에 집중되어 있음을 의미한다. binary InfoNCE 는 candidate pool 12 element 중 1개만 positive, 11개를 균등 negative 로 처리하는 반면 GRCL 의 graded target 은 12 element 모두에 graph distance 기반 분포를 할당하여 retriever 가 세밀한 ordering 을 학습하도록 유도한다.
 
@@ -172,9 +169,6 @@ GRCL kernel BFS 를 단일 edge type 으로 제한:
 
 lr 단일 변경으로 R@10 +1.7pp, MRR +5.2pp — method ablation 효과와 동일 크기. soft softmax ($\tau$ 0.07 → 0.10) 가 GRCL graded target 분포와 더 잘 align.
 
-![Training curves](eval/results/figures/training_curves.png)
-*Figure 4. Training loss curves. Best HP combo (lr=1e-4) 가 default 보다 빠르게 수렴.*
-
 ### 4.4 GME + graph propagation: encoder-agnostic plug-in
 
 본 paper 의 **가장 큰 단일 실증 결과**. 외부 retrieval-tuned MLLM (GME-Qwen2-VL-2B-Instruct, 2B params) 의 raw retrieval score 위에 본 paper 의 graph propagation 을 적용:
@@ -203,6 +197,9 @@ GME 가 propagation 후 R@10 84.4 로 우리 학습된 SigLIP `h_best_combo` 의
 | **(B) Weighted diffusion** | α=0.3, T=3 | **84.5** | **63.4** |
 | **(C) Personalized PageRank** | α=0.30 (teleport) | 83.3 | 59.1 |
 | **(C) Personalized PageRank** | α=0.50 | 83.2 | 58.6 |
+
+![Three propagation regimes on GME](eval/results/figures/paper/spiqa_gme_prop_regimes.png)
+*Figure 3. 세 propagation regime (uniform diffusion / weighted diffusion / PPR) 이 GME 위에서 동등 효과를 낸다. R@10 83-85%, MRR 59-63%. 단순한 structure-only uniform 과 정교한 weighted modifier, teleport-based PPR 의 결과가 거의 같다 — graph 구조 자체가 효용 원천.*
 
 세 regime 모두 GME 위에서 **R@10 83-85%**, **MRR 59-63%** 로 동등 효과. 정교한 modifier 를 사용하는 weighted diffusion (B) 과 단순한 structure-only uniform diffusion (A), 그리고 teleport-based PPR (C) 가 비슷한 향상을 낸다.
 
