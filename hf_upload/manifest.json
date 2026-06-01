@@ -1,0 +1,380 @@
+{
+  "a_baseline_infonce": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/a_baseline_infonce.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5695724
+  },
+  "anchor_caption": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/anchor_caption.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5694856
+  },
+  "anchor_nlqa": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/anchor_nlqa.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5694205
+  },
+  "anchor_refer": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/anchor_refer.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5694422
+  },
+  "b_gpe_type_infonce": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type",
+    "adapter": "adapters/b_gpe_type_infonce.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5695724
+  },
+  "c_gpe_type_role_infonce": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role",
+    "adapter": "adapters/c_gpe_type_role_infonce.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5696873
+  },
+  "cons_00": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/cons_00.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5692953
+  },
+  "cons_01": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/cons_01.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5692953
+  },
+  "cons_03": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/cons_03.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5692953
+  },
+  "cons_10": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/cons_10.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5692953
+  },
+  "cov_00": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/cov_00.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5686912
+  },
+  "cov_01": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/cov_01.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5686912
+  },
+  "cov_05": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/cov_05.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5686912
+  },
+  "cov_10": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/cov_10.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5686912
+  },
+  "d_gpe_full_infonce": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/d_gpe_full_infonce.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5695724
+  },
+  "e_grcl_no_gpe": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/e_grcl_no_gpe.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5694639
+  },
+  "edge_caption_of": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/edge_caption_of.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5695073
+  },
+  "edge_contains": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/edge_contains.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5694639
+  },
+  "edge_refer_to": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/edge_refer_to.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5694639
+  },
+  "f_grcl_gpe": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/f_grcl_gpe.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5693988
+  },
+  "g_grcl_gpe_cov": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/g_grcl_gpe_cov.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5694856
+  },
+  "gamma_03": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/gamma_03.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5693554
+  },
+  "gamma_07": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/gamma_07.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5693554
+  },
+  "h_best_combo_16k": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/h_best_combo_16k.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5695290
+  },
+  "h_best_combo": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/h_best_combo.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5694422
+  },
+  "h_full_method": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/h_full_method.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5694639
+  },
+  "h_gpe_strong": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/h_gpe_strong.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5694422
+  },
+  "h_seed_43": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/h_seed_43.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5693771
+  },
+  "h_seed_44": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/h_seed_44.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5693771
+  },
+  "lora_r16": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/lora_r16.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 10461298
+  },
+  "lora_r32": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 32,
+    "lora_alpha": 64,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/lora_r32.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 19996786
+  },
+  "lora_r4": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 4,
+    "lora_alpha": 8,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/lora_r4.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 3309081
+  },
+  "lr_1e4": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/lr_1e4.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5686912
+  },
+  "lr_1e5": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/lr_1e5.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5686912
+  },
+  "m_shuffled_role": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/m_shuffled_role.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5695073
+  },
+  "n_random_role": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/n_random_role.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5694639
+  },
+  "o_no_query_pe_dropout": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/o_no_query_pe_dropout.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5696375
+  },
+  "p_encoder_clip_l14": {
+    "hf_id": "openai/clip-vit-large-patch14",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/p_encoder_clip_l14.pt",
+    "n_trainable_keys": 305,
+    "size_bytes": 12893370
+  },
+  "tau_005": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/tau_005.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5692953
+  },
+  "tau_010": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/tau_010.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5692953
+  },
+  "tokens_016": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/tokens_016.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5693988
+  },
+  "tokens_064": {
+    "hf_id": "google/siglip2-base-patch16-224",
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "gpe_facets": "type,role,depth,pos",
+    "adapter": "adapters/tokens_064.pt",
+    "n_trainable_keys": 211,
+    "size_bytes": 5693988
+  }
+}
