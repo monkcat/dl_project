@@ -1,0 +1,199 @@
+=== Experiment row e: grcl_no_gpe ===
+  description: LoRA + GRCL (graded graph-relevance), no GPE
+  output dir:  /home/work/dl/dl_project/eval/results/stat/e_grcl_no_gpe
+  checkpoint:  ckpt/e_grcl_no_gpe.pt
+
+(skipping training for e)
+
+--- Evaluation ---
+$ /usr/bin/python -m pipeline.eval_full --out /home/work/dl/dl_project/eval/results/stat/e_grcl_no_gpe/eval.json --device cuda --ckpt ckpt/e_grcl_no_gpe.pt --lora_rank 8 --lora_alpha 16 --hf_id google/siglip2-base-patch16-224 --gpe_facets type,role,depth,pos --dump_per_query --datasets spiqa_testA sciegqa mmdocir
+device: cuda
+[ElementTokenEncoder] loading google/siglip2-base-patch16-224
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+[ElementTokenEncoder] LoRA r=8 α=16 targets=['q_proj', 'k_proj', 'v_proj', 'out_proj'] applied (d_text=768, d_vision=768, cls=False)
+trainable params: 1,191,936 || all params: 376,379,906 || trainable%: 0.3167
+[eval_full] loaded checkpoint: ckpt/e_grcl_no_gpe.pt
+
+[eval] SPIQA test-A
+  graph: 118 docs, elements: 9039, queries: 666
+  [5/118 docs, 26/666 queries] 2s
+  [10/118 docs, 59/666 queries] 5s
+  [15/118 docs, 82/666 queries] 7s
+  [20/118 docs, 105/666 queries] 9s
+  [25/118 docs, 132/666 queries] 11s
+  [30/118 docs, 161/666 queries] 13s
+  [35/118 docs, 181/666 queries] 15s
+  [40/118 docs, 217/666 queries] 18s
+  [45/118 docs, 242/666 queries] 20s
+  [50/118 docs, 269/666 queries] 22s
+  [55/118 docs, 285/666 queries] 23s
+  [60/118 docs, 313/666 queries] 26s
+  [65/118 docs, 352/666 queries] 29s
+  [70/118 docs, 396/666 queries] 32s
+  [75/118 docs, 445/666 queries] 36s
+  [80/118 docs, 481/666 queries] 39s
+  [85/118 docs, 514/666 queries] 41s
+  [90/118 docs, 535/666 queries] 43s
+  [95/118 docs, 560/666 queries] 45s
+  [100/118 docs, 590/666 queries] 48s
+  [105/118 docs, 616/666 queries] 50s
+  [110/118 docs, 640/666 queries] 52s
+  [115/118 docs, 663/666 queries] 54s
+  done in 54s
+
+[eval] SciEGQA
+  graph: 80 docs, elements: 29412, queries: 1623
+  [5/80 docs, 108/1623 queries] 11s
+  [10/80 docs, 218/1623 queries] 25s
+  [15/80 docs, 325/1623 queries] 37s
+  [20/80 docs, 427/1623 queries] 59s
+  [25/80 docs, 532/1623 queries] 72s
+  [30/80 docs, 630/1623 queries] 88s
+  [35/80 docs, 733/1623 queries] 104s
+  [40/80 docs, 818/1623 queries] 112s
+  [45/80 docs, 927/1623 queries] 124s
+  [50/80 docs, 1031/1623 queries] 136s
+  [55/80 docs, 1102/1623 queries] 146s
+  [60/80 docs, 1207/1623 queries] 157s
+  [65/80 docs, 1314/1623 queries] 175s
+  [70/80 docs, 1423/1623 queries] 193s
+  [75/80 docs, 1513/1623 queries] 202s
+  [80/80 docs, 1623/1623 queries] 218s
+  done in 218s
+
+[eval] MMDocIR
+  graph: 75 docs, elements: 15032, queries: 389
+  [5/75 docs, 31/389 queries] 5s
+  [10/75 docs, 58/389 queries] 8s
+  [15/75 docs, 87/389 queries] 14s
+  [20/75 docs, 116/389 queries] 17s
+  [25/75 docs, 137/389 queries] 20s
+  [30/75 docs, 162/389 queries] 21s
+  [35/75 docs, 187/389 queries] 23s
+  [40/75 docs, 212/389 queries] 26s
+  [45/75 docs, 243/389 queries] 28s
+  [50/75 docs, 267/389 queries] 30s
+  [55/75 docs, 288/389 queries] 31s
+  [60/75 docs, 306/389 queries] 33s
+  [65/75 docs, 332/389 queries] 35s
+  [70/75 docs, 364/389 queries] 37s
+  [75/75 docs, 389/389 queries] 39s
+  done in 39s
+
+saved → /home/work/dl/dl_project/eval/results/stat/e_grcl_no_gpe/eval.json
+saved per-query → /home/work/dl/dl_project/eval/results/stat/e_grcl_no_gpe/eval.perquery.json
+
+=== Summary ===
+
+SPIQA test-A:
+  [no_prop] mrr=0.3818  recall@10=0.8709  hit@10=0.8709  coverage@10=0.8709  perfect@10=0.8709
+  [uniform_a01_T2] mrr=0.2836  recall@10=0.7087  hit@10=0.7087  coverage@10=0.7087  perfect@10=0.7087
+  [uniform_a03_T1] mrr=0.2875  recall@10=0.7477  hit@10=0.7477  coverage@10=0.7477  perfect@10=0.7477
+  [uniform_a03_T2] mrr=0.2781  recall@10=0.6607  hit@10=0.6607  coverage@10=0.6607  perfect@10=0.6607
+  [uniform_a03_T3] mrr=0.2884  recall@10=0.6682  hit@10=0.6682  coverage@10=0.6682  perfect@10=0.6682
+  [uniform_a05_T2] mrr=0.2868  recall@10=0.6637  hit@10=0.6637  coverage@10=0.6637  perfect@10=0.6637
+  [wbase_a03_T2] mrr=0.3025  recall@10=0.7027  hit@10=0.7027  coverage@10=0.7027  perfect@10=0.7027
+  [wbase_role_a03_T2] mrr=0.3025  recall@10=0.7027  hit@10=0.7027  coverage@10=0.7027  perfect@10=0.7027
+  [wbase_vis_a03_T2] mrr=0.3040  recall@10=0.7027  hit@10=0.7027  coverage@10=0.7027  perfect@10=0.7027
+  [wfull_a03_T2] mrr=0.3040  recall@10=0.7027  hit@10=0.7027  coverage@10=0.7027  perfect@10=0.7027
+  [wfull_a01_T2] mrr=0.3108  recall@10=0.7387  hit@10=0.7387  coverage@10=0.7387  perfect@10=0.7387
+  [wfull_a05_T2] mrr=0.3127  recall@10=0.6862  hit@10=0.6862  coverage@10=0.6862  perfect@10=0.6862
+  [wfull_a07_T2] mrr=0.2873  recall@10=0.6577  hit@10=0.6577  coverage@10=0.6577  perfect@10=0.6577
+  [wfull_a03_T1] mrr=0.3184  recall@10=0.7928  hit@10=0.7928  coverage@10=0.7928  perfect@10=0.7928
+  [wfull_a03_T3] mrr=0.3111  recall@10=0.6922  hit@10=0.6922  coverage@10=0.6922  perfect@10=0.6922
+  [ppr_a015] mrr=0.2827  recall@10=0.6351  hit@10=0.6351  coverage@10=0.6351  perfect@10=0.6351
+  [ppr_a030] mrr=0.2962  recall@10=0.6562  hit@10=0.6562  coverage@10=0.6562  perfect@10=0.6562
+  [ppr_a050] mrr=0.3183  recall@10=0.6907  hit@10=0.6907  coverage@10=0.6907  perfect@10=0.6907
+  [ppr_a070] mrr=0.3102  recall@10=0.7177  hit@10=0.7177  coverage@10=0.7177  perfect@10=0.7177
+  [ppr_a085] mrr=0.3104  recall@10=0.7312  hit@10=0.7312  coverage@10=0.7312  perfect@10=0.7312
+  [ppr_unif_a030] mrr=0.2961  recall@10=0.6532  hit@10=0.6532  coverage@10=0.6532  perfect@10=0.6532
+  [ppr_unif_a050] mrr=0.2990  recall@10=0.6787  hit@10=0.6787  coverage@10=0.6787  perfect@10=0.6787
+  [prop_a03_T2] mrr=0.3040  recall@10=0.7027  hit@10=0.7027  coverage@10=0.7027  perfect@10=0.7027
+  [prop_a01_T2] mrr=0.3108  recall@10=0.7387  hit@10=0.7387  coverage@10=0.7387  perfect@10=0.7387
+  [prop_a05_T2] mrr=0.3127  recall@10=0.6862  hit@10=0.6862  coverage@10=0.6862  perfect@10=0.6862
+  [prop_a07_T2] mrr=0.2873  recall@10=0.6577  hit@10=0.6577  coverage@10=0.6577  perfect@10=0.6577
+  [prop_a03_T1] mrr=0.3184  recall@10=0.7928  hit@10=0.7928  coverage@10=0.7928  perfect@10=0.7928
+  [prop_a03_T3] mrr=0.3111  recall@10=0.6922  hit@10=0.6922  coverage@10=0.6922  perfect@10=0.6922
+
+SciEGQA:
+  [no_prop] mrr=0.0348  recall@10=0.0101  hit@10=0.0733  coverage@10=0.0101  perfect@10=0.0092  cross_page_hit=0.2658
+  [uniform_a01_T2] mrr=0.0364  recall@10=0.0145  hit@10=0.0702  coverage@10=0.0145  perfect@10=0.0105  cross_page_hit=0.1867
+  [uniform_a03_T1] mrr=0.0351  recall@10=0.0146  hit@10=0.0709  coverage@10=0.0146  perfect@10=0.0105  cross_page_hit=0.1835
+  [uniform_a03_T2] mrr=0.0355  recall@10=0.0145  hit@10=0.0678  coverage@10=0.0145  perfect@10=0.0105  cross_page_hit=0.1741
+  [uniform_a03_T3] mrr=0.0360  recall@10=0.0140  hit@10=0.0659  coverage@10=0.0140  perfect@10=0.0105  cross_page_hit=0.1709
+  [uniform_a05_T2] mrr=0.0359  recall@10=0.0144  hit@10=0.0659  coverage@10=0.0144  perfect@10=0.0105  cross_page_hit=0.1677
+  [wbase_a03_T2] mrr=0.0357  recall@10=0.0148  hit@10=0.0678  coverage@10=0.0148  perfect@10=0.0105  cross_page_hit=0.1741
+  [wbase_role_a03_T2] mrr=0.0357  recall@10=0.0148  hit@10=0.0678  coverage@10=0.0148  perfect@10=0.0105  cross_page_hit=0.1741
+  [wbase_vis_a03_T2] mrr=0.0357  recall@10=0.0148  hit@10=0.0678  coverage@10=0.0148  perfect@10=0.0105  cross_page_hit=0.1741
+  [wfull_a03_T2] mrr=0.0357  recall@10=0.0148  hit@10=0.0678  coverage@10=0.0148  perfect@10=0.0105  cross_page_hit=0.1741
+  [wfull_a01_T2] mrr=0.0366  recall@10=0.0146  hit@10=0.0702  coverage@10=0.0146  perfect@10=0.0105  cross_page_hit=0.1899
+  [wfull_a05_T2] mrr=0.0360  recall@10=0.0149  hit@10=0.0665  coverage@10=0.0149  perfect@10=0.0105  cross_page_hit=0.1677
+  [wfull_a07_T2] mrr=0.0360  recall@10=0.0148  hit@10=0.0672  coverage@10=0.0148  perfect@10=0.0105  cross_page_hit=0.1741
+  [wfull_a03_T1] mrr=0.0358  recall@10=0.0146  hit@10=0.0709  coverage@10=0.0146  perfect@10=0.0105  cross_page_hit=0.1835
+  [wfull_a03_T3] mrr=0.0361  recall@10=0.0147  hit@10=0.0672  coverage@10=0.0147  perfect@10=0.0105  cross_page_hit=0.1709
+  [ppr_a015] mrr=0.0363  recall@10=0.0153  hit@10=0.0665  coverage@10=0.0153  perfect@10=0.0105  cross_page_hit=0.1646
+  [ppr_a030] mrr=0.0359  recall@10=0.0151  hit@10=0.0672  coverage@10=0.0151  perfect@10=0.0105  cross_page_hit=0.1677
+  [ppr_a050] mrr=0.0360  recall@10=0.0150  hit@10=0.0672  coverage@10=0.0150  perfect@10=0.0105  cross_page_hit=0.1772
+  [ppr_a070] mrr=0.0360  recall@10=0.0148  hit@10=0.0684  coverage@10=0.0148  perfect@10=0.0105  cross_page_hit=0.1899
+  [ppr_a085] mrr=0.0369  recall@10=0.0148  hit@10=0.0696  coverage@10=0.0148  perfect@10=0.0105  cross_page_hit=0.1930
+  [ppr_unif_a030] mrr=0.0357  recall@10=0.0145  hit@10=0.0659  coverage@10=0.0145  perfect@10=0.0105  cross_page_hit=0.1646
+  [ppr_unif_a050] mrr=0.0361  recall@10=0.0144  hit@10=0.0659  coverage@10=0.0144  perfect@10=0.0105  cross_page_hit=0.1741
+  [prop_a03_T2] mrr=0.0357  recall@10=0.0148  hit@10=0.0678  coverage@10=0.0148  perfect@10=0.0105  cross_page_hit=0.1741
+  [prop_a01_T2] mrr=0.0366  recall@10=0.0146  hit@10=0.0702  coverage@10=0.0146  perfect@10=0.0105  cross_page_hit=0.1899
+  [prop_a05_T2] mrr=0.0360  recall@10=0.0149  hit@10=0.0665  coverage@10=0.0149  perfect@10=0.0105  cross_page_hit=0.1677
+  [prop_a07_T2] mrr=0.0360  recall@10=0.0148  hit@10=0.0672  coverage@10=0.0148  perfect@10=0.0105  cross_page_hit=0.1741
+  [prop_a03_T1] mrr=0.0358  recall@10=0.0146  hit@10=0.0709  coverage@10=0.0146  perfect@10=0.0105  cross_page_hit=0.1835
+  [prop_a03_T3] mrr=0.0361  recall@10=0.0147  hit@10=0.0672  coverage@10=0.0147  perfect@10=0.0105  cross_page_hit=0.1709
+
+MMDocIR:
+  [no_prop] mrr=0.0290  recall@10=0.0250  hit@10=0.0411  coverage@10=0.0250  perfect@10=0.0283  cross_page_hit=0.1525
+  [uniform_a01_T2] mrr=0.0273  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [uniform_a03_T1] mrr=0.0274  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [uniform_a03_T2] mrr=0.0288  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [uniform_a03_T3] mrr=0.0291  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [uniform_a05_T2] mrr=0.0292  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [wbase_a03_T2] mrr=0.0288  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [wbase_role_a03_T2] mrr=0.0288  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [wbase_vis_a03_T2] mrr=0.0288  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [wfull_a03_T2] mrr=0.0288  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [wfull_a01_T2] mrr=0.0273  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [wfull_a05_T2] mrr=0.0292  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [wfull_a07_T2] mrr=0.0288  recall@10=0.0446  hit@10=0.0591  coverage@10=0.0446  perfect@10=0.0463  cross_page_hit=0.0508
+  [wfull_a03_T1] mrr=0.0274  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [wfull_a03_T3] mrr=0.0291  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [ppr_a015] mrr=0.0289  recall@10=0.0407  hit@10=0.0566  coverage@10=0.0407  perfect@10=0.0411  cross_page_hit=0.0508
+  [ppr_a030] mrr=0.0285  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [ppr_a050] mrr=0.0275  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [ppr_a070] mrr=0.0271  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [ppr_a085] mrr=0.0270  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [ppr_unif_a030] mrr=0.0285  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [ppr_unif_a050] mrr=0.0275  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [prop_a03_T2] mrr=0.0288  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [prop_a01_T2] mrr=0.0273  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [prop_a05_T2] mrr=0.0292  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [prop_a07_T2] mrr=0.0288  recall@10=0.0446  hit@10=0.0591  coverage@10=0.0446  perfect@10=0.0463  cross_page_hit=0.0508
+  [prop_a03_T1] mrr=0.0274  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+  [prop_a03_T3] mrr=0.0291  recall@10=0.0382  hit@10=0.0540  coverage@10=0.0382  perfect@10=0.0386  cross_page_hit=0.0508
+[main1:178160:0:178160] Caught signal 11 (Segmentation fault: address not mapped to object at address 0x7ff8917adec0)
+==== backtrace (tid: 178160) ====
+ 0  /opt/hpcx/ucx/lib/libucs.so.0(ucs_handle_error+0x2e4) [0x7ff87fb06774]
+ 1  /opt/hpcx/ucx/lib/libucs.so.0(+0x3796a) [0x7ff87fb0696a]
+ 2  /opt/hpcx/ucx/lib/libucs.so.0(+0x37ba8) [0x7ff87fb06ba8]
+ 3  /usr/lib/x86_64-linux-gnu/libc.so.6(+0x45330) [0x7ff891a33330]
+ 4  /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.575.51.03(+0x336c1) [0x7ff88b0336c1]
+ 5  /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.575.51.03(nvmlShutdown+0xe) [0x7ff88b01cfae]
+ 6  /opt/kernel/libcudahook.ubuntu18.04.x86_64.so(+0xc3caf) [0x7ff891cc3caf]
+ 7  /opt/kernel/libcudahook.ubuntu18.04.x86_64.so(+0xc3d48) [0x7ff891cc3d48]
+ 8  /opt/kernel/libcudahook.ubuntu18.04.x86_64.so(+0xc3a2d) [0x7ff891cc3a2d]
+ 9  /lib64/ld-linux-x86-64.so.2(+0x10f2) [0x7ff89282e0f2]
+10  /lib64/ld-linux-x86-64.so.2(+0x5578) [0x7ff892832578]
+11  /usr/lib/x86_64-linux-gnu/libc.so.6(+0x47a76) [0x7ff891a35a76]
+12  /usr/lib/x86_64-linux-gnu/libc.so.6(+0x47bbe) [0x7ff891a35bbe]
+13  /usr/lib/x86_64-linux-gnu/libc.so.6(+0x2a1d1) [0x7ff891a181d1]
+14  /usr/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b) [0x7ff891a1828b]
+15  /usr/bin/python(_start+0x25) [0x657ce5]
+=================================
+  eval exited with code -11 but eval.json looks complete — treating as success
+  eval done in 5.4 min
+
+=== Experiment e complete → /home/work/dl/dl_project/eval/results/stat/e_grcl_no_gpe/summary.json ===

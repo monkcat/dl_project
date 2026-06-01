@@ -1,0 +1,728 @@
+=== Experiment row lora_r32: lora_r32 ===
+  description: (h) with LoRA rank=32
+  output dir:  /home/work/dl/dl_project/eval/results/experiments/lora_r32_lora_r32
+  checkpoint:  ckpt/lora_r32_lora_r32.pt
+
+--- Training ---
+$ /usr/bin/python -m pipeline.trainer --config lora_r32 --out /home/work/dl/dl_project/eval/results/experiments/lora_r32_lora_r32/train.json --save_ckpt ckpt/lora_r32_lora_r32.pt
+device: cuda
+args: {'config': 'lora_r32', 'train_sample': 0, 'steps': 8000, 'batch': 16, 'pool': 12, 'lr': 3e-05, 'lora_rank': 32, 'tau': 0.07, 'lambda_cov': 0.3, 'lambda_cons': 0.5, 'use_gpe': 1, 'loss_type': 'grcl', 'infonce_threshold': 0.5, 'anchor_kind': 'mixed', 'warmup_steps': 200, 'weight_decay': 0.01, 'eval_every': 500, 'eval_cf_pairs': 200, 'eval_recall_n': 200, 'seed': 42, 'out': '/home/work/dl/dl_project/eval/results/experiments/lora_r32_lora_r32/train.json', 'save_ckpt': 'ckpt/lora_r32_lora_r32.pt', 'gamma': 0.5, 'gpe_facets': 'type,role,depth,pos', 'lora_alpha': 64, 'hf_id': 'google/siglip2-base-patch16-224', 'edge_types_only': None, 'query_pe_dropout': 0.5, 'section_role_mode': 'normal', 'tokens_per_visual': 0}
+
+[1/3] loading SPIQA test-A (held-out eval)...
+  loading element_graph_v2.json
+    118 papers kept
+  loading elements_v2.jsonl
+    9,039 element records kept
+  loading SPIQA_testA.json
+    666 QA pairs kept
+    caption_of: 1,115  refer_to: 1,191  (skipped 0 due to missing image)
+
+[2/3] loading SPIQA train (sample N=0)...
+  loading element_graph_v2.json
+    25,459 papers kept
+  loading elements_v2.jsonl
+    1,873,124 element records kept
+  loading SPIQA_train.json
+    262,524 QA pairs kept
+    caption_of: 262,524  refer_to: 231,101  (skipped 0 due to missing image)
+
+[3/3] building encoder...
+[ElementTokenEncoder] loading google/siglip2-base-patch16-224
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+[ElementTokenEncoder] LoRA r=32 α=64 targets=['q_proj', 'k_proj', 'v_proj', 'out_proj'] applied (d_text=768, d_vision=768, cls=False)
+trainable params: 4,767,744 || all params: 379,955,714 || trainable%: 1.2548
+
+[eval 0] held-out test-A baseline...
+  caption-figure cos: +0.0220
+  Recall@1/5/10 (n=200): 0.0% / 0.0% / 0.0%
+/home/work/dl/dl_project/pipeline/graph_pe.py:112: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /opt/pytorch/pytorch/aten/src/ATen/native/Scalar.cpp:22.)
+  "type": torch.sigmoid(self.raw_alpha_type).item(),
+step    20  L_grcl=196.54  L_cov=57.71  L_cons=0.000  L_tot=213.85  diag=+0.038  mix=[cap:104/ref:110/nl:106]  β=0.047  α_t=0.047  (17s)
+step    40  L_grcl=190.00  L_cov=56.45  L_cons=0.000  L_tot=206.93  diag=+0.075  mix=[cap:120/ref:109/nl:91]  β=0.047  α_t=0.047  (34s)
+step    60  L_grcl=161.70  L_cov=46.87  L_cons=0.000  L_tot=175.76  diag=+0.168  mix=[cap:85/ref:117/nl:118]  β=0.047  α_t=0.047  (52s)
+step    80  L_grcl=134.51  L_cov=35.69  L_cons=0.000  L_tot=145.22  diag=+0.321  mix=[cap:105/ref:113/nl:102]  β=0.047  α_t=0.047  (70s)
+step   100  L_grcl= 98.49  L_cov=24.61  L_cons=0.001  L_tot=105.88  diag=+0.494  mix=[cap:108/ref:109/nl:103]  β=0.047  α_t=0.047  (87s)
+step   120  L_grcl= 79.13  L_cov=16.01  L_cons=0.001  L_tot= 83.93  diag=+0.596  mix=[cap:117/ref:113/nl:90]  β=0.047  α_t=0.047  (104s)
+step   140  L_grcl= 51.61  L_cov= 8.59  L_cons=0.001  L_tot= 54.19  diag=+0.659  mix=[cap:99/ref:118/nl:103]  β=0.047  α_t=0.047  (121s)
+step   160  L_grcl= 28.00  L_cov= 1.71  L_cons=0.001  L_tot= 28.51  diag=+0.734  mix=[cap:106/ref:117/nl:97]  β=0.047  α_t=0.047  (138s)
+step   180  L_grcl= 15.18  L_cov= 0.23  L_cons=0.001  L_tot= 15.24  diag=+0.805  mix=[cap:107/ref:99/nl:114]  β=0.047  α_t=0.047  (154s)
+step   200  L_grcl=  9.32  L_cov= 0.17  L_cons=0.001  L_tot=  9.37  diag=+0.878  mix=[cap:112/ref:109/nl:99]  β=0.047  α_t=0.048  (171s)
+step   220  L_grcl=  7.18  L_cov= 0.17  L_cons=0.001  L_tot=  7.23  diag=+0.931  mix=[cap:129/ref:113/nl:78]  β=0.047  α_t=0.048  (188s)
+step   240  L_grcl=  4.73  L_cov= 0.21  L_cons=0.000  L_tot=  4.80  diag=+0.961  mix=[cap:124/ref:109/nl:87]  β=0.047  α_t=0.048  (205s)
+step   260  L_grcl=  3.67  L_cov= 0.28  L_cons=0.000  L_tot=  3.75  diag=+0.977  mix=[cap:106/ref:114/nl:100]  β=0.047  α_t=0.048  (222s)
+step   280  L_grcl=  3.17  L_cov= 0.32  L_cons=0.000  L_tot=  3.26  diag=+0.985  mix=[cap:96/ref:129/nl:95]  β=0.047  α_t=0.048  (239s)
+step   300  L_grcl=  2.63  L_cov= 0.36  L_cons=0.000  L_tot=  2.74  diag=+0.989  mix=[cap:116/ref:99/nl:105]  β=0.047  α_t=0.048  (256s)
+step   320  L_grcl=  2.63  L_cov= 0.37  L_cons=0.000  L_tot=  2.74  diag=+0.991  mix=[cap:88/ref:126/nl:106]  β=0.047  α_t=0.048  (273s)
+step   340  L_grcl=  2.47  L_cov= 0.37  L_cons=0.000  L_tot=  2.58  diag=+0.992  mix=[cap:120/ref:105/nl:95]  β=0.047  α_t=0.048  (290s)
+step   360  L_grcl=  2.34  L_cov= 0.37  L_cons=0.000  L_tot=  2.45  diag=+0.993  mix=[cap:88/ref:120/nl:112]  β=0.047  α_t=0.048  (307s)
+step   380  L_grcl=  2.20  L_cov= 0.40  L_cons=0.000  L_tot=  2.32  diag=+0.994  mix=[cap:92/ref:113/nl:115]  β=0.047  α_t=0.048  (324s)
+step   400  L_grcl=  2.24  L_cov= 0.37  L_cons=0.000  L_tot=  2.35  diag=+0.994  mix=[cap:108/ref:127/nl:85]  β=0.047  α_t=0.048  (341s)
+step   420  L_grcl=  2.10  L_cov= 0.36  L_cons=0.000  L_tot=  2.20  diag=+0.994  mix=[cap:115/ref:111/nl:94]  β=0.047  α_t=0.048  (358s)
+step   440  L_grcl=  2.06  L_cov= 0.35  L_cons=0.000  L_tot=  2.16  diag=+0.995  mix=[cap:113/ref:108/nl:99]  β=0.047  α_t=0.048  (375s)
+step   460  L_grcl=  2.08  L_cov= 0.39  L_cons=0.000  L_tot=  2.19  diag=+0.996  mix=[cap:109/ref:104/nl:107]  β=0.047  α_t=0.048  (392s)
+step   480  L_grcl=  2.09  L_cov= 0.40  L_cons=0.000  L_tot=  2.21  diag=+0.996  mix=[cap:93/ref:121/nl:106]  β=0.047  α_t=0.048  (409s)
+step   500  L_grcl=  2.00  L_cov= 0.38  L_cons=0.000  L_tot=  2.12  diag=+0.996  mix=[cap:131/ref:97/nl:92]  β=0.047  α_t=0.048  (426s)
+
+  [eval @ step 500] held-out test-A...
+    cap-fig cos: +0.9965  (Δ +0.9745)
+    R@1/5/10: 7.5% / 38.0% / 71.0%  (Δ +7.5 / +38.0 / +71.0)
+    [ckpt saved @ step 500 R@10=71.0%]
+
+step   520  L_grcl=  2.03  L_cov= 0.39  L_cons=0.000  L_tot=  2.15  diag=+0.995  mix=[cap:105/ref:103/nl:112]  β=0.047  α_t=0.048  (464s)
+step   540  L_grcl=  2.07  L_cov= 0.37  L_cons=0.000  L_tot=  2.18  diag=+0.996  mix=[cap:103/ref:125/nl:92]  β=0.047  α_t=0.048  (481s)
+step   560  L_grcl=  2.04  L_cov= 0.39  L_cons=0.000  L_tot=  2.16  diag=+0.996  mix=[cap:102/ref:121/nl:97]  β=0.047  α_t=0.048  (498s)
+step   580  L_grcl=  2.00  L_cov= 0.38  L_cons=0.000  L_tot=  2.11  diag=+0.996  mix=[cap:111/ref:111/nl:98]  β=0.047  α_t=0.048  (515s)
+step   600  L_grcl=  2.08  L_cov= 0.40  L_cons=0.000  L_tot=  2.19  diag=+0.996  mix=[cap:98/ref:120/nl:102]  β=0.047  α_t=0.048  (533s)
+step   620  L_grcl=  1.98  L_cov= 0.40  L_cons=0.000  L_tot=  2.10  diag=+0.996  mix=[cap:108/ref:114/nl:98]  β=0.047  α_t=0.048  (550s)
+step   640  L_grcl=  2.00  L_cov= 0.39  L_cons=0.000  L_tot=  2.11  diag=+0.995  mix=[cap:108/ref:106/nl:106]  β=0.047  α_t=0.048  (567s)
+step   660  L_grcl=  2.01  L_cov= 0.38  L_cons=0.000  L_tot=  2.12  diag=+0.996  mix=[cap:100/ref:115/nl:105]  β=0.048  α_t=0.048  (584s)
+step   680  L_grcl=  2.05  L_cov= 0.39  L_cons=0.000  L_tot=  2.17  diag=+0.995  mix=[cap:99/ref:113/nl:108]  β=0.048  α_t=0.048  (601s)
+step   700  L_grcl=  2.06  L_cov= 0.40  L_cons=0.000  L_tot=  2.18  diag=+0.996  mix=[cap:94/ref:116/nl:110]  β=0.048  α_t=0.048  (618s)
+step   720  L_grcl=  2.02  L_cov= 0.41  L_cons=0.000  L_tot=  2.15  diag=+0.996  mix=[cap:100/ref:116/nl:104]  β=0.048  α_t=0.048  (635s)
+step   740  L_grcl=  2.00  L_cov= 0.40  L_cons=0.000  L_tot=  2.12  diag=+0.996  mix=[cap:106/ref:104/nl:110]  β=0.048  α_t=0.049  (651s)
+step   760  L_grcl=  2.04  L_cov= 0.39  L_cons=0.000  L_tot=  2.16  diag=+0.995  mix=[cap:97/ref:102/nl:121]  β=0.048  α_t=0.049  (668s)
+step   780  L_grcl=  2.03  L_cov= 0.40  L_cons=0.000  L_tot=  2.15  diag=+0.995  mix=[cap:93/ref:107/nl:120]  β=0.048  α_t=0.049  (686s)
+step   800  L_grcl=  2.00  L_cov= 0.39  L_cons=0.000  L_tot=  2.12  diag=+0.995  mix=[cap:98/ref:102/nl:120]  β=0.048  α_t=0.049  (702s)
+step   820  L_grcl=  1.96  L_cov= 0.37  L_cons=0.000  L_tot=  2.07  diag=+0.995  mix=[cap:108/ref:107/nl:105]  β=0.048  α_t=0.049  (719s)
+step   840  L_grcl=  1.98  L_cov= 0.37  L_cons=0.000  L_tot=  2.10  diag=+0.994  mix=[cap:106/ref:117/nl:97]  β=0.048  α_t=0.049  (737s)
+step   860  L_grcl=  2.04  L_cov= 0.39  L_cons=0.000  L_tot=  2.15  diag=+0.995  mix=[cap:92/ref:117/nl:111]  β=0.048  α_t=0.049  (754s)
+step   880  L_grcl=  2.01  L_cov= 0.40  L_cons=0.000  L_tot=  2.13  diag=+0.995  mix=[cap:99/ref:112/nl:109]  β=0.048  α_t=0.049  (773s)
+step   900  L_grcl=  2.02  L_cov= 0.40  L_cons=0.000  L_tot=  2.14  diag=+0.996  mix=[cap:108/ref:106/nl:106]  β=0.048  α_t=0.049  (790s)
+step   920  L_grcl=  1.97  L_cov= 0.38  L_cons=0.000  L_tot=  2.09  diag=+0.996  mix=[cap:91/ref:123/nl:106]  β=0.048  α_t=0.049  (807s)
+step   940  L_grcl=  1.98  L_cov= 0.39  L_cons=0.000  L_tot=  2.10  diag=+0.995  mix=[cap:104/ref:108/nl:108]  β=0.048  α_t=0.049  (824s)
+step   960  L_grcl=  1.96  L_cov= 0.37  L_cons=0.000  L_tot=  2.08  diag=+0.995  mix=[cap:101/ref:101/nl:118]  β=0.048  α_t=0.049  (841s)
+step   980  L_grcl=  1.99  L_cov= 0.38  L_cons=0.000  L_tot=  2.11  diag=+0.995  mix=[cap:85/ref:117/nl:118]  β=0.048  α_t=0.049  (858s)
+step  1000  L_grcl=  1.92  L_cov= 0.37  L_cons=0.000  L_tot=  2.04  diag=+0.995  mix=[cap:118/ref:118/nl:84]  β=0.048  α_t=0.049  (875s)
+
+  [eval @ step 1000] held-out test-A...
+    cap-fig cos: +0.9954  (Δ +0.9734)
+    R@1/5/10: 8.5% / 43.5% / 78.5%  (Δ +8.5 / +43.5 / +78.5)
+    [ckpt saved @ step 1000 R@10=78.5%]
+
+step  1020  L_grcl=  2.04  L_cov= 0.39  L_cons=0.000  L_tot=  2.15  diag=+0.995  mix=[cap:119/ref:113/nl:88]  β=0.048  α_t=0.049  (914s)
+step  1040  L_grcl=  1.94  L_cov= 0.39  L_cons=0.000  L_tot=  2.05  diag=+0.995  mix=[cap:106/ref:107/nl:107]  β=0.048  α_t=0.049  (931s)
+step  1060  L_grcl=  2.04  L_cov= 0.38  L_cons=0.000  L_tot=  2.15  diag=+0.994  mix=[cap:107/ref:110/nl:103]  β=0.048  α_t=0.049  (947s)
+step  1080  L_grcl=  1.95  L_cov= 0.37  L_cons=0.000  L_tot=  2.07  diag=+0.995  mix=[cap:112/ref:112/nl:96]  β=0.048  α_t=0.049  (964s)
+step  1100  L_grcl=  2.04  L_cov= 0.39  L_cons=0.000  L_tot=  2.15  diag=+0.995  mix=[cap:105/ref:116/nl:99]  β=0.048  α_t=0.049  (981s)
+step  1120  L_grcl=  1.97  L_cov= 0.39  L_cons=0.000  L_tot=  2.09  diag=+0.995  mix=[cap:121/ref:89/nl:110]  β=0.048  α_t=0.049  (998s)
+step  1140  L_grcl=  2.05  L_cov= 0.39  L_cons=0.000  L_tot=  2.17  diag=+0.994  mix=[cap:111/ref:98/nl:111]  β=0.048  α_t=0.049  (1015s)
+step  1160  L_grcl=  1.90  L_cov= 0.38  L_cons=0.000  L_tot=  2.02  diag=+0.994  mix=[cap:121/ref:95/nl:104]  β=0.048  α_t=0.049  (1032s)
+step  1180  L_grcl=  1.94  L_cov= 0.37  L_cons=0.000  L_tot=  2.05  diag=+0.994  mix=[cap:121/ref:113/nl:86]  β=0.048  α_t=0.049  (1049s)
+step  1200  L_grcl=  1.92  L_cov= 0.37  L_cons=0.000  L_tot=  2.03  diag=+0.994  mix=[cap:112/ref:99/nl:109]  β=0.048  α_t=0.049  (1066s)
+step  1220  L_grcl=  1.90  L_cov= 0.36  L_cons=0.000  L_tot=  2.01  diag=+0.994  mix=[cap:105/ref:109/nl:106]  β=0.048  α_t=0.049  (1083s)
+step  1240  L_grcl=  2.00  L_cov= 0.38  L_cons=0.000  L_tot=  2.11  diag=+0.994  mix=[cap:111/ref:102/nl:107]  β=0.048  α_t=0.050  (1100s)
+step  1260  L_grcl=  2.04  L_cov= 0.36  L_cons=0.000  L_tot=  2.15  diag=+0.995  mix=[cap:104/ref:121/nl:95]  β=0.048  α_t=0.050  (1116s)
+step  1280  L_grcl=  1.95  L_cov= 0.40  L_cons=0.000  L_tot=  2.07  diag=+0.995  mix=[cap:110/ref:105/nl:105]  β=0.048  α_t=0.050  (1133s)
+step  1300  L_grcl=  1.98  L_cov= 0.35  L_cons=0.000  L_tot=  2.09  diag=+0.994  mix=[cap:107/ref:132/nl:81]  β=0.048  α_t=0.050  (1151s)
+step  1320  L_grcl=  1.95  L_cov= 0.39  L_cons=0.000  L_tot=  2.07  diag=+0.994  mix=[cap:104/ref:125/nl:91]  β=0.048  α_t=0.050  (1168s)
+step  1340  L_grcl=  1.97  L_cov= 0.37  L_cons=0.000  L_tot=  2.08  diag=+0.994  mix=[cap:110/ref:103/nl:107]  β=0.048  α_t=0.050  (1185s)
+step  1360  L_grcl=  1.97  L_cov= 0.40  L_cons=0.000  L_tot=  2.09  diag=+0.994  mix=[cap:90/ref:108/nl:122]  β=0.048  α_t=0.050  (1202s)
+step  1380  L_grcl=  1.97  L_cov= 0.37  L_cons=0.000  L_tot=  2.08  diag=+0.993  mix=[cap:111/ref:104/nl:105]  β=0.048  α_t=0.050  (1219s)
+step  1400  L_grcl=  1.95  L_cov= 0.39  L_cons=0.000  L_tot=  2.07  diag=+0.993  mix=[cap:110/ref:99/nl:111]  β=0.048  α_t=0.050  (1236s)
+step  1420  L_grcl=  1.93  L_cov= 0.36  L_cons=0.000  L_tot=  2.03  diag=+0.994  mix=[cap:106/ref:120/nl:94]  β=0.048  α_t=0.050  (1253s)
+step  1440  L_grcl=  1.95  L_cov= 0.37  L_cons=0.000  L_tot=  2.06  diag=+0.993  mix=[cap:102/ref:107/nl:111]  β=0.048  α_t=0.050  (1270s)
+step  1460  L_grcl=  1.98  L_cov= 0.38  L_cons=0.000  L_tot=  2.09  diag=+0.994  mix=[cap:99/ref:114/nl:107]  β=0.048  α_t=0.050  (1288s)
+step  1480  L_grcl=  1.90  L_cov= 0.37  L_cons=0.000  L_tot=  2.01  diag=+0.993  mix=[cap:104/ref:88/nl:128]  β=0.048  α_t=0.050  (1304s)
+step  1500  L_grcl=  1.91  L_cov= 0.35  L_cons=0.000  L_tot=  2.01  diag=+0.992  mix=[cap:97/ref:108/nl:115]  β=0.048  α_t=0.050  (1321s)
+
+  [eval @ step 1500] held-out test-A...
+    cap-fig cos: +0.9944  (Δ +0.9724)
+    R@1/5/10: 8.5% / 45.5% / 72.5%  (Δ +8.5 / +45.5 / +72.5)
+
+step  1520  L_grcl=  1.99  L_cov= 0.37  L_cons=0.000  L_tot=  2.10  diag=+0.993  mix=[cap:101/ref:112/nl:107]  β=0.048  α_t=0.050  (1350s)
+step  1540  L_grcl=  1.90  L_cov= 0.36  L_cons=0.000  L_tot=  2.00  diag=+0.992  mix=[cap:108/ref:108/nl:104]  β=0.048  α_t=0.050  (1367s)
+step  1560  L_grcl=  1.89  L_cov= 0.36  L_cons=0.000  L_tot=  2.00  diag=+0.992  mix=[cap:102/ref:104/nl:114]  β=0.048  α_t=0.050  (1384s)
+step  1580  L_grcl=  2.00  L_cov= 0.37  L_cons=0.000  L_tot=  2.11  diag=+0.992  mix=[cap:78/ref:129/nl:113]  β=0.048  α_t=0.050  (1401s)
+step  1600  L_grcl=  1.91  L_cov= 0.37  L_cons=0.000  L_tot=  2.02  diag=+0.993  mix=[cap:113/ref:109/nl:98]  β=0.048  α_t=0.050  (1418s)
+step  1620  L_grcl=  1.95  L_cov= 0.37  L_cons=0.000  L_tot=  2.07  diag=+0.993  mix=[cap:95/ref:110/nl:115]  β=0.048  α_t=0.050  (1436s)
+step  1640  L_grcl=  1.90  L_cov= 0.36  L_cons=0.000  L_tot=  2.00  diag=+0.992  mix=[cap:105/ref:103/nl:112]  β=0.048  α_t=0.050  (1453s)
+step  1660  L_grcl=  1.91  L_cov= 0.37  L_cons=0.000  L_tot=  2.02  diag=+0.991  mix=[cap:99/ref:102/nl:119]  β=0.048  α_t=0.050  (1470s)
+step  1680  L_grcl=  1.90  L_cov= 0.36  L_cons=0.000  L_tot=  2.01  diag=+0.991  mix=[cap:115/ref:98/nl:107]  β=0.048  α_t=0.050  (1487s)
+step  1700  L_grcl=  1.92  L_cov= 0.36  L_cons=0.000  L_tot=  2.03  diag=+0.992  mix=[cap:94/ref:118/nl:108]  β=0.048  α_t=0.050  (1504s)
+step  1720  L_grcl=  1.97  L_cov= 0.35  L_cons=0.000  L_tot=  2.07  diag=+0.992  mix=[cap:102/ref:105/nl:113]  β=0.048  α_t=0.050  (1522s)
+step  1740  L_grcl=  1.91  L_cov= 0.36  L_cons=0.000  L_tot=  2.02  diag=+0.993  mix=[cap:108/ref:111/nl:101]  β=0.048  α_t=0.050  (1538s)
+step  1760  L_grcl=  1.98  L_cov= 0.37  L_cons=0.000  L_tot=  2.09  diag=+0.992  mix=[cap:114/ref:98/nl:108]  β=0.048  α_t=0.050  (1556s)
+step  1780  L_grcl=  1.90  L_cov= 0.35  L_cons=0.000  L_tot=  2.00  diag=+0.991  mix=[cap:115/ref:92/nl:113]  β=0.048  α_t=0.050  (1573s)
+step  1800  L_grcl=  1.85  L_cov= 0.35  L_cons=0.000  L_tot=  1.96  diag=+0.992  mix=[cap:115/ref:97/nl:108]  β=0.048  α_t=0.050  (1590s)
+step  1820  L_grcl=  1.86  L_cov= 0.33  L_cons=0.000  L_tot=  1.96  diag=+0.991  mix=[cap:116/ref:109/nl:95]  β=0.048  α_t=0.050  (1608s)
+step  1840  L_grcl=  1.93  L_cov= 0.35  L_cons=0.000  L_tot=  2.04  diag=+0.990  mix=[cap:90/ref:115/nl:115]  β=0.048  α_t=0.050  (1624s)
+step  1860  L_grcl=  1.94  L_cov= 0.35  L_cons=0.000  L_tot=  2.05  diag=+0.992  mix=[cap:97/ref:120/nl:103]  β=0.049  α_t=0.050  (1641s)
+step  1880  L_grcl=  1.87  L_cov= 0.36  L_cons=0.000  L_tot=  1.97  diag=+0.993  mix=[cap:108/ref:116/nl:96]  β=0.049  α_t=0.050  (1658s)
+step  1900  L_grcl=  1.89  L_cov= 0.33  L_cons=0.000  L_tot=  1.99  diag=+0.990  mix=[cap:106/ref:111/nl:103]  β=0.049  α_t=0.050  (1676s)
+step  1920  L_grcl=  1.91  L_cov= 0.35  L_cons=0.000  L_tot=  2.02  diag=+0.991  mix=[cap:94/ref:115/nl:111]  β=0.049  α_t=0.050  (1693s)
+step  1940  L_grcl=  1.90  L_cov= 0.35  L_cons=0.000  L_tot=  2.00  diag=+0.992  mix=[cap:117/ref:98/nl:105]  β=0.049  α_t=0.051  (1710s)
+step  1960  L_grcl=  1.90  L_cov= 0.34  L_cons=0.000  L_tot=  2.00  diag=+0.991  mix=[cap:99/ref:112/nl:109]  β=0.049  α_t=0.051  (1727s)
+step  1980  L_grcl=  1.93  L_cov= 0.36  L_cons=0.000  L_tot=  2.04  diag=+0.991  mix=[cap:104/ref:98/nl:118]  β=0.049  α_t=0.051  (1744s)
+step  2000  L_grcl=  1.85  L_cov= 0.34  L_cons=0.000  L_tot=  1.95  diag=+0.991  mix=[cap:107/ref:95/nl:118]  β=0.049  α_t=0.051  (1761s)
+
+  [eval @ step 2000] held-out test-A...
+    cap-fig cos: +0.9952  (Δ +0.9732)
+    R@1/5/10: 15.5% / 55.5% / 82.0%  (Δ +15.5 / +55.5 / +82.0)
+    [ckpt saved @ step 2000 R@10=82.0%]
+
+step  2020  L_grcl=  1.86  L_cov= 0.33  L_cons=0.000  L_tot=  1.95  diag=+0.991  mix=[cap:120/ref:91/nl:109]  β=0.049  α_t=0.051  (1799s)
+step  2040  L_grcl=  1.92  L_cov= 0.35  L_cons=0.000  L_tot=  2.03  diag=+0.991  mix=[cap:104/ref:117/nl:99]  β=0.049  α_t=0.051  (1816s)
+step  2060  L_grcl=  1.84  L_cov= 0.32  L_cons=0.000  L_tot=  1.94  diag=+0.992  mix=[cap:112/ref:110/nl:98]  β=0.049  α_t=0.051  (1832s)
+step  2080  L_grcl=  1.87  L_cov= 0.36  L_cons=0.000  L_tot=  1.98  diag=+0.991  mix=[cap:112/ref:99/nl:109]  β=0.049  α_t=0.051  (1849s)
+step  2100  L_grcl=  1.88  L_cov= 0.34  L_cons=0.000  L_tot=  1.98  diag=+0.992  mix=[cap:109/ref:108/nl:103]  β=0.049  α_t=0.051  (1866s)
+step  2120  L_grcl=  1.87  L_cov= 0.34  L_cons=0.000  L_tot=  1.97  diag=+0.992  mix=[cap:119/ref:115/nl:86]  β=0.049  α_t=0.051  (1883s)
+step  2140  L_grcl=  1.89  L_cov= 0.33  L_cons=0.000  L_tot=  1.98  diag=+0.990  mix=[cap:102/ref:111/nl:107]  β=0.049  α_t=0.051  (1900s)
+step  2160  L_grcl=  1.89  L_cov= 0.34  L_cons=0.000  L_tot=  1.99  diag=+0.990  mix=[cap:96/ref:111/nl:113]  β=0.049  α_t=0.051  (1917s)
+step  2180  L_grcl=  1.85  L_cov= 0.35  L_cons=0.000  L_tot=  1.96  diag=+0.991  mix=[cap:96/ref:114/nl:110]  β=0.049  α_t=0.051  (1934s)
+step  2200  L_grcl=  1.86  L_cov= 0.34  L_cons=0.000  L_tot=  1.97  diag=+0.990  mix=[cap:92/ref:116/nl:112]  β=0.049  α_t=0.051  (1951s)
+step  2220  L_grcl=  1.86  L_cov= 0.34  L_cons=0.000  L_tot=  1.96  diag=+0.991  mix=[cap:97/ref:110/nl:113]  β=0.049  α_t=0.051  (1968s)
+step  2240  L_grcl=  1.93  L_cov= 0.35  L_cons=0.000  L_tot=  2.04  diag=+0.990  mix=[cap:95/ref:116/nl:109]  β=0.049  α_t=0.051  (1985s)
+step  2260  L_grcl=  1.91  L_cov= 0.35  L_cons=0.000  L_tot=  2.02  diag=+0.991  mix=[cap:111/ref:94/nl:115]  β=0.049  α_t=0.051  (2002s)
+step  2280  L_grcl=  1.86  L_cov= 0.34  L_cons=0.000  L_tot=  1.96  diag=+0.992  mix=[cap:93/ref:119/nl:108]  β=0.049  α_t=0.051  (2020s)
+step  2300  L_grcl=  1.78  L_cov= 0.33  L_cons=0.000  L_tot=  1.88  diag=+0.990  mix=[cap:117/ref:102/nl:101]  β=0.049  α_t=0.051  (2037s)
+step  2320  L_grcl=  1.88  L_cov= 0.33  L_cons=0.000  L_tot=  1.98  diag=+0.991  mix=[cap:113/ref:100/nl:107]  β=0.049  α_t=0.051  (2054s)
+step  2340  L_grcl=  1.84  L_cov= 0.33  L_cons=0.000  L_tot=  1.94  diag=+0.991  mix=[cap:100/ref:105/nl:115]  β=0.049  α_t=0.051  (2071s)
+step  2360  L_grcl=  1.87  L_cov= 0.36  L_cons=0.000  L_tot=  1.98  diag=+0.992  mix=[cap:108/ref:111/nl:101]  β=0.049  α_t=0.051  (2088s)
+step  2380  L_grcl=  1.90  L_cov= 0.34  L_cons=0.000  L_tot=  2.00  diag=+0.992  mix=[cap:100/ref:110/nl:110]  β=0.049  α_t=0.051  (2104s)
+step  2400  L_grcl=  1.86  L_cov= 0.34  L_cons=0.000  L_tot=  1.96  diag=+0.992  mix=[cap:103/ref:100/nl:117]  β=0.049  α_t=0.051  (2121s)
+step  2420  L_grcl=  1.78  L_cov= 0.33  L_cons=0.000  L_tot=  1.88  diag=+0.991  mix=[cap:131/ref:95/nl:94]  β=0.049  α_t=0.051  (2138s)
+step  2440  L_grcl=  1.89  L_cov= 0.33  L_cons=0.000  L_tot=  1.99  diag=+0.990  mix=[cap:112/ref:106/nl:102]  β=0.049  α_t=0.051  (2156s)
+step  2460  L_grcl=  1.91  L_cov= 0.35  L_cons=0.000  L_tot=  2.02  diag=+0.991  mix=[cap:97/ref:114/nl:109]  β=0.049  α_t=0.051  (2172s)
+step  2480  L_grcl=  1.85  L_cov= 0.33  L_cons=0.000  L_tot=  1.95  diag=+0.992  mix=[cap:119/ref:101/nl:100]  β=0.049  α_t=0.051  (2189s)
+step  2500  L_grcl=  1.84  L_cov= 0.32  L_cons=0.000  L_tot=  1.94  diag=+0.990  mix=[cap:103/ref:115/nl:102]  β=0.049  α_t=0.051  (2207s)
+
+  [eval @ step 2500] held-out test-A...
+    cap-fig cos: +0.9949  (Δ +0.9729)
+    R@1/5/10: 18.0% / 67.5% / 85.0%  (Δ +18.0 / +67.5 / +85.0)
+    [ckpt saved @ step 2500 R@10=85.0%]
+
+step  2520  L_grcl=  1.86  L_cov= 0.34  L_cons=0.000  L_tot=  1.97  diag=+0.992  mix=[cap:115/ref:108/nl:97]  β=0.049  α_t=0.051  (2245s)
+step  2540  L_grcl=  1.87  L_cov= 0.34  L_cons=0.000  L_tot=  1.97  diag=+0.991  mix=[cap:97/ref:114/nl:109]  β=0.049  α_t=0.051  (2263s)
+step  2560  L_grcl=  1.80  L_cov= 0.32  L_cons=0.000  L_tot=  1.90  diag=+0.990  mix=[cap:109/ref:93/nl:118]  β=0.049  α_t=0.051  (2280s)
+step  2580  L_grcl=  1.82  L_cov= 0.33  L_cons=0.000  L_tot=  1.92  diag=+0.991  mix=[cap:108/ref:104/nl:108]  β=0.049  α_t=0.051  (2297s)
+step  2600  L_grcl=  1.84  L_cov= 0.33  L_cons=0.000  L_tot=  1.93  diag=+0.991  mix=[cap:102/ref:121/nl:97]  β=0.049  α_t=0.051  (2313s)
+step  2620  L_grcl=  1.81  L_cov= 0.32  L_cons=0.000  L_tot=  1.91  diag=+0.990  mix=[cap:102/ref:101/nl:117]  β=0.049  α_t=0.051  (2330s)
+step  2640  L_grcl=  1.86  L_cov= 0.34  L_cons=0.000  L_tot=  1.96  diag=+0.991  mix=[cap:106/ref:104/nl:110]  β=0.049  α_t=0.051  (2347s)
+step  2660  L_grcl=  1.81  L_cov= 0.32  L_cons=0.000  L_tot=  1.91  diag=+0.988  mix=[cap:105/ref:95/nl:120]  β=0.049  α_t=0.051  (2364s)
+step  2680  L_grcl=  1.89  L_cov= 0.33  L_cons=0.000  L_tot=  1.99  diag=+0.989  mix=[cap:116/ref:100/nl:104]  β=0.049  α_t=0.051  (2381s)
+step  2700  L_grcl=  1.79  L_cov= 0.33  L_cons=0.000  L_tot=  1.88  diag=+0.990  mix=[cap:103/ref:114/nl:103]  β=0.049  α_t=0.052  (2398s)
+step  2720  L_grcl=  1.83  L_cov= 0.33  L_cons=0.000  L_tot=  1.93  diag=+0.988  mix=[cap:101/ref:96/nl:123]  β=0.049  α_t=0.052  (2415s)
+step  2740  L_grcl=  1.75  L_cov= 0.31  L_cons=0.000  L_tot=  1.85  diag=+0.989  mix=[cap:112/ref:95/nl:113]  β=0.049  α_t=0.052  (2432s)
+step  2760  L_grcl=  1.87  L_cov= 0.32  L_cons=0.000  L_tot=  1.96  diag=+0.989  mix=[cap:99/ref:129/nl:92]  β=0.049  α_t=0.052  (2449s)
+step  2780  L_grcl=  1.82  L_cov= 0.33  L_cons=0.000  L_tot=  1.92  diag=+0.991  mix=[cap:106/ref:112/nl:102]  β=0.050  α_t=0.052  (2466s)
+step  2800  L_grcl=  1.81  L_cov= 0.33  L_cons=0.000  L_tot=  1.91  diag=+0.991  mix=[cap:108/ref:114/nl:98]  β=0.050  α_t=0.052  (2483s)
+step  2820  L_grcl=  1.82  L_cov= 0.30  L_cons=0.000  L_tot=  1.91  diag=+0.990  mix=[cap:116/ref:97/nl:107]  β=0.050  α_t=0.052  (2500s)
+step  2840  L_grcl=  1.83  L_cov= 0.33  L_cons=0.000  L_tot=  1.93  diag=+0.991  mix=[cap:101/ref:103/nl:116]  β=0.050  α_t=0.052  (2517s)
+step  2860  L_grcl=  1.88  L_cov= 0.33  L_cons=0.000  L_tot=  1.98  diag=+0.991  mix=[cap:112/ref:102/nl:106]  β=0.050  α_t=0.052  (2534s)
+step  2880  L_grcl=  1.83  L_cov= 0.33  L_cons=0.000  L_tot=  1.93  diag=+0.991  mix=[cap:113/ref:117/nl:90]  β=0.050  α_t=0.052  (2550s)
+step  2900  L_grcl=  1.90  L_cov= 0.33  L_cons=0.000  L_tot=  2.00  diag=+0.991  mix=[cap:106/ref:110/nl:104]  β=0.050  α_t=0.052  (2568s)
+step  2920  L_grcl=  1.82  L_cov= 0.32  L_cons=0.000  L_tot=  1.92  diag=+0.991  mix=[cap:119/ref:102/nl:99]  β=0.050  α_t=0.052  (2585s)
+step  2940  L_grcl=  1.75  L_cov= 0.32  L_cons=0.000  L_tot=  1.85  diag=+0.988  mix=[cap:106/ref:98/nl:116]  β=0.050  α_t=0.052  (2601s)
+step  2960  L_grcl=  1.92  L_cov= 0.32  L_cons=0.000  L_tot=  2.02  diag=+0.990  mix=[cap:110/ref:106/nl:104]  β=0.050  α_t=0.052  (2618s)
+step  2980  L_grcl=  1.78  L_cov= 0.32  L_cons=0.000  L_tot=  1.88  diag=+0.990  mix=[cap:111/ref:109/nl:100]  β=0.050  α_t=0.052  (2635s)
+step  3000  L_grcl=  1.79  L_cov= 0.31  L_cons=0.000  L_tot=  1.88  diag=+0.989  mix=[cap:111/ref:110/nl:99]  β=0.050  α_t=0.052  (2652s)
+
+  [eval @ step 3000] held-out test-A...
+    cap-fig cos: +0.9948  (Δ +0.9729)
+    R@1/5/10: 14.5% / 51.0% / 81.5%  (Δ +14.5 / +51.0 / +81.5)
+
+step  3020  L_grcl=  1.84  L_cov= 0.32  L_cons=0.000  L_tot=  1.93  diag=+0.989  mix=[cap:96/ref:109/nl:115]  β=0.050  α_t=0.052  (2681s)
+step  3040  L_grcl=  1.81  L_cov= 0.33  L_cons=0.000  L_tot=  1.91  diag=+0.989  mix=[cap:104/ref:104/nl:112]  β=0.050  α_t=0.052  (2697s)
+step  3060  L_grcl=  1.84  L_cov= 0.32  L_cons=0.000  L_tot=  1.93  diag=+0.991  mix=[cap:101/ref:121/nl:98]  β=0.050  α_t=0.052  (2714s)
+step  3080  L_grcl=  1.88  L_cov= 0.33  L_cons=0.000  L_tot=  1.98  diag=+0.989  mix=[cap:96/ref:116/nl:108]  β=0.050  α_t=0.052  (2732s)
+step  3100  L_grcl=  1.80  L_cov= 0.31  L_cons=0.000  L_tot=  1.90  diag=+0.990  mix=[cap:106/ref:108/nl:106]  β=0.050  α_t=0.052  (2749s)
+step  3120  L_grcl=  1.83  L_cov= 0.32  L_cons=0.000  L_tot=  1.92  diag=+0.990  mix=[cap:106/ref:119/nl:95]  β=0.050  α_t=0.052  (2766s)
+step  3140  L_grcl=  1.79  L_cov= 0.32  L_cons=0.000  L_tot=  1.89  diag=+0.990  mix=[cap:115/ref:108/nl:97]  β=0.050  α_t=0.052  (2783s)
+step  3160  L_grcl=  1.79  L_cov= 0.32  L_cons=0.000  L_tot=  1.88  diag=+0.987  mix=[cap:110/ref:105/nl:105]  β=0.050  α_t=0.052  (2800s)
+step  3180  L_grcl=  1.84  L_cov= 0.32  L_cons=0.000  L_tot=  1.93  diag=+0.988  mix=[cap:92/ref:113/nl:115]  β=0.050  α_t=0.052  (2817s)
+step  3200  L_grcl=  1.78  L_cov= 0.30  L_cons=0.000  L_tot=  1.87  diag=+0.989  mix=[cap:102/ref:118/nl:100]  β=0.050  α_t=0.052  (2834s)
+step  3220  L_grcl=  1.77  L_cov= 0.30  L_cons=0.000  L_tot=  1.86  diag=+0.989  mix=[cap:111/ref:108/nl:101]  β=0.050  α_t=0.052  (2851s)
+step  3240  L_grcl=  1.81  L_cov= 0.31  L_cons=0.000  L_tot=  1.91  diag=+0.990  mix=[cap:109/ref:100/nl:111]  β=0.050  α_t=0.052  (2868s)
+step  3260  L_grcl=  1.83  L_cov= 0.32  L_cons=0.000  L_tot=  1.93  diag=+0.990  mix=[cap:115/ref:114/nl:91]  β=0.050  α_t=0.052  (2885s)
+step  3280  L_grcl=  1.90  L_cov= 0.35  L_cons=0.000  L_tot=  2.00  diag=+0.991  mix=[cap:97/ref:115/nl:108]  β=0.050  α_t=0.052  (2902s)
+step  3300  L_grcl=  1.85  L_cov= 0.33  L_cons=0.000  L_tot=  1.95  diag=+0.990  mix=[cap:98/ref:110/nl:112]  β=0.050  α_t=0.052  (2920s)
+step  3320  L_grcl=  1.83  L_cov= 0.32  L_cons=0.000  L_tot=  1.93  diag=+0.989  mix=[cap:108/ref:116/nl:96]  β=0.050  α_t=0.052  (2937s)
+step  3340  L_grcl=  1.82  L_cov= 0.32  L_cons=0.000  L_tot=  1.92  diag=+0.989  mix=[cap:102/ref:105/nl:113]  β=0.050  α_t=0.052  (2954s)
+step  3360  L_grcl=  1.84  L_cov= 0.34  L_cons=0.000  L_tot=  1.94  diag=+0.990  mix=[cap:101/ref:115/nl:104]  β=0.050  α_t=0.052  (2971s)
+step  3380  L_grcl=  1.82  L_cov= 0.31  L_cons=0.000  L_tot=  1.92  diag=+0.989  mix=[cap:113/ref:109/nl:98]  β=0.050  α_t=0.052  (2988s)
+step  3400  L_grcl=  1.86  L_cov= 0.33  L_cons=0.000  L_tot=  1.96  diag=+0.990  mix=[cap:107/ref:126/nl:87]  β=0.050  α_t=0.052  (3005s)
+step  3420  L_grcl=  1.85  L_cov= 0.34  L_cons=0.000  L_tot=  1.95  diag=+0.989  mix=[cap:103/ref:107/nl:110]  β=0.050  α_t=0.052  (3022s)
+step  3440  L_grcl=  1.83  L_cov= 0.33  L_cons=0.000  L_tot=  1.93  diag=+0.989  mix=[cap:99/ref:104/nl:117]  β=0.050  α_t=0.052  (3039s)
+step  3460  L_grcl=  1.77  L_cov= 0.31  L_cons=0.000  L_tot=  1.86  diag=+0.989  mix=[cap:106/ref:116/nl:98]  β=0.050  α_t=0.052  (3056s)
+step  3480  L_grcl=  1.76  L_cov= 0.30  L_cons=0.000  L_tot=  1.85  diag=+0.988  mix=[cap:105/ref:110/nl:105]  β=0.050  α_t=0.052  (3073s)
+step  3500  L_grcl=  1.82  L_cov= 0.32  L_cons=0.000  L_tot=  1.92  diag=+0.988  mix=[cap:106/ref:113/nl:101]  β=0.050  α_t=0.052  (3090s)
+
+  [eval @ step 3500] held-out test-A...
+    cap-fig cos: +0.9941  (Δ +0.9721)
+    R@1/5/10: 18.0% / 55.0% / 83.5%  (Δ +18.0 / +55.0 / +83.5)
+
+step  3520  L_grcl=  1.82  L_cov= 0.31  L_cons=0.000  L_tot=  1.92  diag=+0.989  mix=[cap:98/ref:122/nl:100]  β=0.050  α_t=0.052  (3123s)
+step  3540  L_grcl=  1.84  L_cov= 0.31  L_cons=0.000  L_tot=  1.94  diag=+0.989  mix=[cap:100/ref:117/nl:103]  β=0.050  α_t=0.053  (3140s)
+step  3560  L_grcl=  1.83  L_cov= 0.32  L_cons=0.000  L_tot=  1.93  diag=+0.991  mix=[cap:107/ref:113/nl:100]  β=0.051  α_t=0.053  (3157s)
+step  3580  L_grcl=  1.81  L_cov= 0.31  L_cons=0.000  L_tot=  1.90  diag=+0.989  mix=[cap:111/ref:91/nl:118]  β=0.051  α_t=0.053  (3174s)
+step  3600  L_grcl=  1.82  L_cov= 0.33  L_cons=0.000  L_tot=  1.91  diag=+0.989  mix=[cap:104/ref:102/nl:114]  β=0.051  α_t=0.053  (3191s)
+step  3620  L_grcl=  1.84  L_cov= 0.32  L_cons=0.000  L_tot=  1.93  diag=+0.990  mix=[cap:114/ref:96/nl:110]  β=0.051  α_t=0.053  (3208s)
+step  3640  L_grcl=  1.83  L_cov= 0.32  L_cons=0.000  L_tot=  1.93  diag=+0.988  mix=[cap:87/ref:112/nl:121]  β=0.051  α_t=0.053  (3225s)
+step  3660  L_grcl=  1.81  L_cov= 0.32  L_cons=0.000  L_tot=  1.91  diag=+0.988  mix=[cap:111/ref:101/nl:108]  β=0.051  α_t=0.053  (3242s)
+step  3680  L_grcl=  1.77  L_cov= 0.31  L_cons=0.000  L_tot=  1.87  diag=+0.991  mix=[cap:114/ref:105/nl:101]  β=0.051  α_t=0.053  (3259s)
+step  3700  L_grcl=  1.83  L_cov= 0.31  L_cons=0.000  L_tot=  1.92  diag=+0.989  mix=[cap:90/ref:134/nl:96]  β=0.051  α_t=0.053  (3275s)
+step  3720  L_grcl=  1.81  L_cov= 0.33  L_cons=0.000  L_tot=  1.91  diag=+0.988  mix=[cap:112/ref:97/nl:111]  β=0.051  α_t=0.053  (3293s)
+step  3740  L_grcl=  1.74  L_cov= 0.30  L_cons=0.000  L_tot=  1.83  diag=+0.989  mix=[cap:107/ref:97/nl:116]  β=0.051  α_t=0.053  (3310s)
+step  3760  L_grcl=  1.82  L_cov= 0.30  L_cons=0.000  L_tot=  1.91  diag=+0.989  mix=[cap:110/ref:108/nl:102]  β=0.051  α_t=0.053  (3328s)
+step  3780  L_grcl=  1.79  L_cov= 0.32  L_cons=0.000  L_tot=  1.89  diag=+0.989  mix=[cap:101/ref:114/nl:105]  β=0.051  α_t=0.053  (3344s)
+step  3800  L_grcl=  1.80  L_cov= 0.31  L_cons=0.000  L_tot=  1.89  diag=+0.987  mix=[cap:95/ref:112/nl:113]  β=0.051  α_t=0.053  (3361s)
+step  3820  L_grcl=  1.79  L_cov= 0.31  L_cons=0.000  L_tot=  1.88  diag=+0.989  mix=[cap:107/ref:109/nl:104]  β=0.051  α_t=0.053  (3378s)
+step  3840  L_grcl=  1.78  L_cov= 0.30  L_cons=0.000  L_tot=  1.87  diag=+0.988  mix=[cap:113/ref:108/nl:99]  β=0.051  α_t=0.053  (3395s)
+step  3860  L_grcl=  1.86  L_cov= 0.32  L_cons=0.000  L_tot=  1.96  diag=+0.990  mix=[cap:107/ref:121/nl:92]  β=0.051  α_t=0.053  (3412s)
+step  3880  L_grcl=  1.83  L_cov= 0.33  L_cons=0.000  L_tot=  1.93  diag=+0.988  mix=[cap:100/ref:120/nl:100]  β=0.051  α_t=0.053  (3429s)
+step  3900  L_grcl=  1.77  L_cov= 0.31  L_cons=0.000  L_tot=  1.86  diag=+0.989  mix=[cap:117/ref:104/nl:99]  β=0.051  α_t=0.053  (3447s)
+step  3920  L_grcl=  1.77  L_cov= 0.30  L_cons=0.000  L_tot=  1.86  diag=+0.987  mix=[cap:113/ref:104/nl:103]  β=0.051  α_t=0.053  (3464s)
+step  3940  L_grcl=  1.78  L_cov= 0.32  L_cons=0.000  L_tot=  1.87  diag=+0.989  mix=[cap:107/ref:116/nl:97]  β=0.051  α_t=0.053  (3481s)
+step  3960  L_grcl=  1.75  L_cov= 0.31  L_cons=0.000  L_tot=  1.85  diag=+0.988  mix=[cap:103/ref:112/nl:105]  β=0.051  α_t=0.053  (3498s)
+step  3980  L_grcl=  1.78  L_cov= 0.31  L_cons=0.000  L_tot=  1.87  diag=+0.989  mix=[cap:117/ref:112/nl:91]  β=0.051  α_t=0.053  (3515s)
+step  4000  L_grcl=  1.79  L_cov= 0.32  L_cons=0.000  L_tot=  1.89  diag=+0.989  mix=[cap:104/ref:100/nl:116]  β=0.051  α_t=0.053  (3532s)
+
+  [eval @ step 4000] held-out test-A...
+    cap-fig cos: +0.9944  (Δ +0.9724)
+    R@1/5/10: 16.5% / 63.0% / 85.0%  (Δ +16.5 / +63.0 / +85.0)
+
+step  4020  L_grcl=  1.77  L_cov= 0.30  L_cons=0.000  L_tot=  1.86  diag=+0.987  mix=[cap:109/ref:103/nl:108]  β=0.051  α_t=0.053  (3561s)
+step  4040  L_grcl=  1.82  L_cov= 0.32  L_cons=0.000  L_tot=  1.92  diag=+0.988  mix=[cap:108/ref:111/nl:101]  β=0.051  α_t=0.053  (3579s)
+step  4060  L_grcl=  1.75  L_cov= 0.31  L_cons=0.000  L_tot=  1.84  diag=+0.987  mix=[cap:113/ref:97/nl:110]  β=0.051  α_t=0.053  (3596s)
+step  4080  L_grcl=  1.81  L_cov= 0.31  L_cons=0.000  L_tot=  1.90  diag=+0.988  mix=[cap:102/ref:106/nl:112]  β=0.051  α_t=0.053  (3613s)
+step  4100  L_grcl=  1.82  L_cov= 0.31  L_cons=0.000  L_tot=  1.91  diag=+0.990  mix=[cap:100/ref:120/nl:100]  β=0.051  α_t=0.053  (3633s)
+step  4120  L_grcl=  1.83  L_cov= 0.32  L_cons=0.000  L_tot=  1.93  diag=+0.990  mix=[cap:104/ref:101/nl:115]  β=0.051  α_t=0.053  (3650s)
+step  4140  L_grcl=  1.82  L_cov= 0.32  L_cons=0.000  L_tot=  1.92  diag=+0.990  mix=[cap:97/ref:117/nl:106]  β=0.051  α_t=0.053  (3667s)
+step  4160  L_grcl=  1.80  L_cov= 0.31  L_cons=0.000  L_tot=  1.89  diag=+0.989  mix=[cap:109/ref:109/nl:102]  β=0.051  α_t=0.053  (3685s)
+step  4180  L_grcl=  1.78  L_cov= 0.33  L_cons=0.000  L_tot=  1.88  diag=+0.988  mix=[cap:109/ref:109/nl:102]  β=0.051  α_t=0.053  (3703s)
+step  4200  L_grcl=  1.74  L_cov= 0.30  L_cons=0.000  L_tot=  1.83  diag=+0.985  mix=[cap:105/ref:111/nl:104]  β=0.051  α_t=0.053  (3720s)
+step  4220  L_grcl=  1.83  L_cov= 0.34  L_cons=0.000  L_tot=  1.93  diag=+0.991  mix=[cap:94/ref:122/nl:104]  β=0.051  α_t=0.053  (3738s)
+step  4240  L_grcl=  1.80  L_cov= 0.32  L_cons=0.000  L_tot=  1.90  diag=+0.988  mix=[cap:99/ref:108/nl:113]  β=0.051  α_t=0.053  (3755s)
+step  4260  L_grcl=  1.80  L_cov= 0.30  L_cons=0.000  L_tot=  1.89  diag=+0.988  mix=[cap:116/ref:99/nl:105]  β=0.051  α_t=0.053  (3772s)
+step  4280  L_grcl=  1.74  L_cov= 0.32  L_cons=0.000  L_tot=  1.84  diag=+0.989  mix=[cap:114/ref:84/nl:122]  β=0.052  α_t=0.053  (3790s)
+step  4300  L_grcl=  1.76  L_cov= 0.31  L_cons=0.000  L_tot=  1.86  diag=+0.988  mix=[cap:100/ref:105/nl:115]  β=0.052  α_t=0.053  (3807s)
+step  4320  L_grcl=  1.80  L_cov= 0.30  L_cons=0.000  L_tot=  1.89  diag=+0.987  mix=[cap:96/ref:116/nl:108]  β=0.052  α_t=0.053  (3824s)
+step  4340  L_grcl=  1.78  L_cov= 0.33  L_cons=0.000  L_tot=  1.88  diag=+0.989  mix=[cap:114/ref:99/nl:107]  β=0.052  α_t=0.053  (3842s)
+step  4360  L_grcl=  1.82  L_cov= 0.31  L_cons=0.000  L_tot=  1.91  diag=+0.987  mix=[cap:92/ref:116/nl:112]  β=0.052  α_t=0.053  (3859s)
+step  4380  L_grcl=  1.74  L_cov= 0.31  L_cons=0.000  L_tot=  1.84  diag=+0.987  mix=[cap:102/ref:92/nl:126]  β=0.052  α_t=0.053  (3876s)
+step  4400  L_grcl=  1.72  L_cov= 0.29  L_cons=0.000  L_tot=  1.81  diag=+0.988  mix=[cap:115/ref:106/nl:99]  β=0.052  α_t=0.053  (3893s)
+step  4420  L_grcl=  1.80  L_cov= 0.30  L_cons=0.000  L_tot=  1.89  diag=+0.989  mix=[cap:97/ref:114/nl:109]  β=0.052  α_t=0.053  (3910s)
+step  4440  L_grcl=  1.79  L_cov= 0.31  L_cons=0.000  L_tot=  1.89  diag=+0.987  mix=[cap:117/ref:95/nl:108]  β=0.052  α_t=0.053  (3927s)
+step  4460  L_grcl=  1.77  L_cov= 0.31  L_cons=0.001  L_tot=  1.87  diag=+0.988  mix=[cap:80/ref:124/nl:116]  β=0.052  α_t=0.054  (3944s)
+step  4480  L_grcl=  1.81  L_cov= 0.31  L_cons=0.000  L_tot=  1.90  diag=+0.987  mix=[cap:97/ref:113/nl:110]  β=0.052  α_t=0.054  (3961s)
+step  4500  L_grcl=  1.72  L_cov= 0.31  L_cons=0.000  L_tot=  1.81  diag=+0.991  mix=[cap:119/ref:104/nl:97]  β=0.052  α_t=0.054  (3978s)
+
+  [eval @ step 4500] held-out test-A...
+    cap-fig cos: +0.9935  (Δ +0.9715)
+    R@1/5/10: 9.5% / 51.5% / 77.5%  (Δ +9.5 / +51.5 / +77.5)
+
+step  4520  L_grcl=  1.79  L_cov= 0.31  L_cons=0.000  L_tot=  1.89  diag=+0.989  mix=[cap:107/ref:114/nl:99]  β=0.052  α_t=0.054  (4007s)
+step  4540  L_grcl=  1.78  L_cov= 0.30  L_cons=0.000  L_tot=  1.87  diag=+0.988  mix=[cap:103/ref:109/nl:108]  β=0.052  α_t=0.054  (4024s)
+step  4560  L_grcl=  1.80  L_cov= 0.31  L_cons=0.000  L_tot=  1.90  diag=+0.988  mix=[cap:96/ref:109/nl:115]  β=0.052  α_t=0.054  (4041s)
+step  4580  L_grcl=  1.73  L_cov= 0.30  L_cons=0.000  L_tot=  1.82  diag=+0.988  mix=[cap:110/ref:100/nl:110]  β=0.052  α_t=0.054  (4058s)
+step  4600  L_grcl=  1.82  L_cov= 0.30  L_cons=0.000  L_tot=  1.91  diag=+0.987  mix=[cap:117/ref:100/nl:103]  β=0.052  α_t=0.054  (4075s)
+step  4620  L_grcl=  1.77  L_cov= 0.32  L_cons=0.000  L_tot=  1.87  diag=+0.990  mix=[cap:111/ref:114/nl:95]  β=0.052  α_t=0.054  (4092s)
+step  4640  L_grcl=  1.76  L_cov= 0.30  L_cons=0.000  L_tot=  1.85  diag=+0.989  mix=[cap:117/ref:105/nl:98]  β=0.052  α_t=0.054  (4110s)
+step  4660  L_grcl=  1.80  L_cov= 0.31  L_cons=0.000  L_tot=  1.89  diag=+0.988  mix=[cap:93/ref:121/nl:106]  β=0.052  α_t=0.054  (4127s)
+step  4680  L_grcl=  1.78  L_cov= 0.30  L_cons=0.000  L_tot=  1.87  diag=+0.988  mix=[cap:121/ref:101/nl:98]  β=0.052  α_t=0.054  (4144s)
+step  4700  L_grcl=  1.79  L_cov= 0.31  L_cons=0.000  L_tot=  1.88  diag=+0.988  mix=[cap:105/ref:125/nl:90]  β=0.052  α_t=0.054  (4162s)
+step  4720  L_grcl=  1.78  L_cov= 0.30  L_cons=0.000  L_tot=  1.87  diag=+0.988  mix=[cap:97/ref:114/nl:109]  β=0.052  α_t=0.054  (4179s)
+step  4740  L_grcl=  1.76  L_cov= 0.31  L_cons=0.000  L_tot=  1.85  diag=+0.987  mix=[cap:105/ref:98/nl:117]  β=0.052  α_t=0.054  (4196s)
+step  4760  L_grcl=  1.81  L_cov= 0.32  L_cons=0.000  L_tot=  1.91  diag=+0.988  mix=[cap:108/ref:114/nl:98]  β=0.052  α_t=0.054  (4213s)
+step  4780  L_grcl=  1.74  L_cov= 0.30  L_cons=0.000  L_tot=  1.83  diag=+0.988  mix=[cap:102/ref:118/nl:100]  β=0.052  α_t=0.054  (4231s)
+step  4800  L_grcl=  1.72  L_cov= 0.28  L_cons=0.000  L_tot=  1.81  diag=+0.988  mix=[cap:101/ref:111/nl:108]  β=0.052  α_t=0.054  (4248s)
+step  4820  L_grcl=  1.70  L_cov= 0.30  L_cons=0.000  L_tot=  1.79  diag=+0.987  mix=[cap:121/ref:97/nl:102]  β=0.052  α_t=0.054  (4265s)
+step  4840  L_grcl=  1.79  L_cov= 0.29  L_cons=0.000  L_tot=  1.87  diag=+0.987  mix=[cap:102/ref:109/nl:109]  β=0.052  α_t=0.054  (4283s)
+step  4860  L_grcl=  1.81  L_cov= 0.30  L_cons=0.000  L_tot=  1.90  diag=+0.987  mix=[cap:99/ref:121/nl:100]  β=0.052  α_t=0.054  (4300s)
+step  4880  L_grcl=  1.79  L_cov= 0.31  L_cons=0.000  L_tot=  1.88  diag=+0.988  mix=[cap:109/ref:108/nl:103]  β=0.052  α_t=0.054  (4318s)
+step  4900  L_grcl=  1.80  L_cov= 0.30  L_cons=0.000  L_tot=  1.89  diag=+0.990  mix=[cap:114/ref:114/nl:92]  β=0.052  α_t=0.054  (4336s)
+step  4920  L_grcl=  1.78  L_cov= 0.33  L_cons=0.000  L_tot=  1.88  diag=+0.989  mix=[cap:114/ref:108/nl:98]  β=0.052  α_t=0.054  (4353s)
+step  4940  L_grcl=  1.72  L_cov= 0.29  L_cons=0.000  L_tot=  1.81  diag=+0.988  mix=[cap:114/ref:104/nl:102]  β=0.052  α_t=0.054  (4370s)
+step  4960  L_grcl=  1.78  L_cov= 0.31  L_cons=0.000  L_tot=  1.87  diag=+0.989  mix=[cap:116/ref:114/nl:90]  β=0.052  α_t=0.054  (4387s)
+step  4980  L_grcl=  1.78  L_cov= 0.30  L_cons=0.000  L_tot=  1.87  diag=+0.988  mix=[cap:106/ref:96/nl:118]  β=0.053  α_t=0.054  (4405s)
+step  5000  L_grcl=  1.77  L_cov= 0.30  L_cons=0.000  L_tot=  1.86  diag=+0.988  mix=[cap:102/ref:117/nl:101]  β=0.053  α_t=0.054  (4422s)
+
+  [eval @ step 5000] held-out test-A...
+    cap-fig cos: +0.9940  (Δ +0.9720)
+    R@1/5/10: 19.5% / 60.0% / 81.0%  (Δ +19.5 / +60.0 / +81.0)
+
+step  5020  L_grcl=  1.75  L_cov= 0.29  L_cons=0.000  L_tot=  1.84  diag=+0.987  mix=[cap:117/ref:95/nl:108]  β=0.053  α_t=0.054  (4455s)
+step  5040  L_grcl=  1.82  L_cov= 0.32  L_cons=0.000  L_tot=  1.92  diag=+0.987  mix=[cap:78/ref:118/nl:124]  β=0.053  α_t=0.054  (4472s)
+step  5060  L_grcl=  1.71  L_cov= 0.30  L_cons=0.000  L_tot=  1.80  diag=+0.988  mix=[cap:115/ref:100/nl:105]  β=0.053  α_t=0.054  (4489s)
+step  5080  L_grcl=  1.78  L_cov= 0.30  L_cons=0.000  L_tot=  1.87  diag=+0.987  mix=[cap:88/ref:125/nl:107]  β=0.053  α_t=0.054  (4506s)
+step  5100  L_grcl=  1.70  L_cov= 0.29  L_cons=0.001  L_tot=  1.79  diag=+0.988  mix=[cap:105/ref:106/nl:109]  β=0.053  α_t=0.054  (4524s)
+step  5120  L_grcl=  1.77  L_cov= 0.31  L_cons=0.000  L_tot=  1.86  diag=+0.986  mix=[cap:104/ref:113/nl:103]  β=0.053  α_t=0.054  (4541s)
+step  5140  L_grcl=  1.71  L_cov= 0.29  L_cons=0.000  L_tot=  1.79  diag=+0.988  mix=[cap:125/ref:105/nl:90]  β=0.053  α_t=0.054  (4558s)
+step  5160  L_grcl=  1.73  L_cov= 0.30  L_cons=0.000  L_tot=  1.82  diag=+0.988  mix=[cap:111/ref:102/nl:107]  β=0.053  α_t=0.054  (4576s)
+step  5180  L_grcl=  1.77  L_cov= 0.30  L_cons=0.000  L_tot=  1.86  diag=+0.987  mix=[cap:101/ref:116/nl:103]  β=0.053  α_t=0.054  (4593s)
+step  5200  L_grcl=  1.80  L_cov= 0.30  L_cons=0.000  L_tot=  1.89  diag=+0.987  mix=[cap:114/ref:110/nl:96]  β=0.053  α_t=0.054  (4611s)
+step  5220  L_grcl=  1.79  L_cov= 0.31  L_cons=0.000  L_tot=  1.89  diag=+0.988  mix=[cap:104/ref:110/nl:106]  β=0.053  α_t=0.054  (4628s)
+step  5240  L_grcl=  1.73  L_cov= 0.29  L_cons=0.000  L_tot=  1.81  diag=+0.989  mix=[cap:112/ref:118/nl:90]  β=0.053  α_t=0.054  (4645s)
+step  5260  L_grcl=  1.73  L_cov= 0.30  L_cons=0.000  L_tot=  1.82  diag=+0.988  mix=[cap:109/ref:120/nl:91]  β=0.053  α_t=0.054  (4663s)
+step  5280  L_grcl=  1.74  L_cov= 0.29  L_cons=0.001  L_tot=  1.83  diag=+0.986  mix=[cap:107/ref:103/nl:110]  β=0.053  α_t=0.054  (4679s)
+step  5300  L_grcl=  1.71  L_cov= 0.28  L_cons=0.001  L_tot=  1.80  diag=+0.987  mix=[cap:124/ref:86/nl:110]  β=0.053  α_t=0.054  (4696s)
+step  5320  L_grcl=  1.76  L_cov= 0.31  L_cons=0.000  L_tot=  1.86  diag=+0.991  mix=[cap:107/ref:118/nl:95]  β=0.053  α_t=0.054  (4714s)
+step  5340  L_grcl=  1.73  L_cov= 0.30  L_cons=0.000  L_tot=  1.82  diag=+0.988  mix=[cap:117/ref:95/nl:108]  β=0.053  α_t=0.054  (4732s)
+step  5360  L_grcl=  1.71  L_cov= 0.30  L_cons=0.000  L_tot=  1.80  diag=+0.987  mix=[cap:124/ref:102/nl:94]  β=0.053  α_t=0.054  (4749s)
+step  5380  L_grcl=  1.71  L_cov= 0.30  L_cons=0.000  L_tot=  1.80  diag=+0.989  mix=[cap:127/ref:109/nl:84]  β=0.053  α_t=0.054  (4766s)
+step  5400  L_grcl=  1.77  L_cov= 0.31  L_cons=0.000  L_tot=  1.87  diag=+0.988  mix=[cap:99/ref:113/nl:108]  β=0.053  α_t=0.055  (4783s)
+step  5420  L_grcl=  1.72  L_cov= 0.30  L_cons=0.000  L_tot=  1.81  diag=+0.987  mix=[cap:102/ref:90/nl:128]  β=0.053  α_t=0.055  (4800s)
+step  5440  L_grcl=  1.77  L_cov= 0.29  L_cons=0.000  L_tot=  1.86  diag=+0.983  mix=[cap:93/ref:117/nl:110]  β=0.053  α_t=0.055  (4817s)
+step  5460  L_grcl=  1.72  L_cov= 0.29  L_cons=0.000  L_tot=  1.81  diag=+0.985  mix=[cap:106/ref:115/nl:99]  β=0.053  α_t=0.055  (4834s)
+step  5480  L_grcl=  1.70  L_cov= 0.29  L_cons=0.000  L_tot=  1.79  diag=+0.988  mix=[cap:106/ref:99/nl:115]  β=0.053  α_t=0.055  (4852s)
+step  5500  L_grcl=  1.74  L_cov= 0.30  L_cons=0.000  L_tot=  1.83  diag=+0.988  mix=[cap:125/ref:112/nl:83]  β=0.053  α_t=0.055  (4869s)
+
+  [eval @ step 5500] held-out test-A...
+    cap-fig cos: +0.9916  (Δ +0.9696)
+    R@1/5/10: 17.5% / 63.5% / 84.5%  (Δ +17.5 / +63.5 / +84.5)
+
+step  5520  L_grcl=  1.73  L_cov= 0.28  L_cons=0.001  L_tot=  1.82  diag=+0.986  mix=[cap:104/ref:109/nl:107]  β=0.053  α_t=0.055  (4897s)
+step  5540  L_grcl=  1.77  L_cov= 0.32  L_cons=0.000  L_tot=  1.87  diag=+0.989  mix=[cap:100/ref:103/nl:117]  β=0.053  α_t=0.055  (4915s)
+step  5560  L_grcl=  1.79  L_cov= 0.30  L_cons=0.001  L_tot=  1.88  diag=+0.987  mix=[cap:124/ref:102/nl:94]  β=0.053  α_t=0.055  (4932s)
+step  5580  L_grcl=  1.71  L_cov= 0.28  L_cons=0.001  L_tot=  1.79  diag=+0.987  mix=[cap:104/ref:114/nl:102]  β=0.053  α_t=0.055  (4949s)
+step  5600  L_grcl=  1.77  L_cov= 0.29  L_cons=0.000  L_tot=  1.86  diag=+0.987  mix=[cap:102/ref:115/nl:103]  β=0.053  α_t=0.055  (4966s)
+step  5620  L_grcl=  1.71  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.988  mix=[cap:88/ref:125/nl:107]  β=0.054  α_t=0.055  (4983s)
+step  5640  L_grcl=  1.70  L_cov= 0.29  L_cons=0.001  L_tot=  1.79  diag=+0.988  mix=[cap:119/ref:103/nl:98]  β=0.054  α_t=0.055  (5000s)
+step  5660  L_grcl=  1.71  L_cov= 0.28  L_cons=0.001  L_tot=  1.80  diag=+0.988  mix=[cap:105/ref:112/nl:103]  β=0.054  α_t=0.055  (5017s)
+step  5680  L_grcl=  1.74  L_cov= 0.29  L_cons=0.001  L_tot=  1.83  diag=+0.988  mix=[cap:94/ref:123/nl:103]  β=0.054  α_t=0.055  (5034s)
+step  5700  L_grcl=  1.71  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.988  mix=[cap:112/ref:104/nl:104]  β=0.054  α_t=0.055  (5051s)
+step  5720  L_grcl=  1.77  L_cov= 0.31  L_cons=0.000  L_tot=  1.86  diag=+0.987  mix=[cap:106/ref:108/nl:106]  β=0.054  α_t=0.055  (5068s)
+step  5740  L_grcl=  1.73  L_cov= 0.30  L_cons=0.000  L_tot=  1.82  diag=+0.987  mix=[cap:111/ref:100/nl:109]  β=0.054  α_t=0.055  (5085s)
+step  5760  L_grcl=  1.73  L_cov= 0.30  L_cons=0.001  L_tot=  1.82  diag=+0.987  mix=[cap:90/ref:113/nl:117]  β=0.054  α_t=0.055  (5102s)
+step  5780  L_grcl=  1.72  L_cov= 0.28  L_cons=0.000  L_tot=  1.80  diag=+0.987  mix=[cap:109/ref:102/nl:109]  β=0.054  α_t=0.055  (5119s)
+step  5800  L_grcl=  1.70  L_cov= 0.30  L_cons=0.001  L_tot=  1.79  diag=+0.988  mix=[cap:116/ref:98/nl:106]  β=0.054  α_t=0.055  (5137s)
+step  5820  L_grcl=  1.71  L_cov= 0.30  L_cons=0.001  L_tot=  1.80  diag=+0.986  mix=[cap:101/ref:114/nl:105]  β=0.054  α_t=0.055  (5154s)
+step  5840  L_grcl=  1.75  L_cov= 0.29  L_cons=0.000  L_tot=  1.84  diag=+0.986  mix=[cap:113/ref:101/nl:106]  β=0.054  α_t=0.055  (5171s)
+step  5860  L_grcl=  1.74  L_cov= 0.31  L_cons=0.001  L_tot=  1.83  diag=+0.989  mix=[cap:103/ref:122/nl:95]  β=0.054  α_t=0.055  (5189s)
+step  5880  L_grcl=  1.76  L_cov= 0.29  L_cons=0.001  L_tot=  1.84  diag=+0.988  mix=[cap:102/ref:119/nl:99]  β=0.054  α_t=0.055  (5206s)
+step  5900  L_grcl=  1.76  L_cov= 0.30  L_cons=0.000  L_tot=  1.85  diag=+0.987  mix=[cap:101/ref:109/nl:110]  β=0.054  α_t=0.055  (5223s)
+step  5920  L_grcl=  1.71  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.988  mix=[cap:116/ref:112/nl:92]  β=0.054  α_t=0.055  (5240s)
+step  5940  L_grcl=  1.73  L_cov= 0.29  L_cons=0.001  L_tot=  1.82  diag=+0.988  mix=[cap:109/ref:109/nl:102]  β=0.054  α_t=0.055  (5257s)
+step  5960  L_grcl=  1.67  L_cov= 0.27  L_cons=0.000  L_tot=  1.75  diag=+0.988  mix=[cap:106/ref:107/nl:107]  β=0.054  α_t=0.055  (5274s)
+step  5980  L_grcl=  1.73  L_cov= 0.29  L_cons=0.001  L_tot=  1.82  diag=+0.986  mix=[cap:105/ref:121/nl:94]  β=0.054  α_t=0.055  (5292s)
+step  6000  L_grcl=  1.76  L_cov= 0.29  L_cons=0.000  L_tot=  1.84  diag=+0.986  mix=[cap:99/ref:111/nl:110]  β=0.054  α_t=0.055  (5309s)
+
+  [eval @ step 6000] held-out test-A...
+    cap-fig cos: +0.9913  (Δ +0.9693)
+    R@1/5/10: 17.0% / 58.5% / 84.5%  (Δ +17.0 / +58.5 / +84.5)
+
+step  6020  L_grcl=  1.71  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.988  mix=[cap:105/ref:115/nl:100]  β=0.054  α_t=0.055  (5338s)
+step  6040  L_grcl=  1.73  L_cov= 0.28  L_cons=0.001  L_tot=  1.81  diag=+0.985  mix=[cap:94/ref:108/nl:118]  β=0.054  α_t=0.055  (5356s)
+step  6060  L_grcl=  1.76  L_cov= 0.31  L_cons=0.001  L_tot=  1.85  diag=+0.989  mix=[cap:102/ref:117/nl:101]  β=0.054  α_t=0.055  (5373s)
+step  6080  L_grcl=  1.72  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.986  mix=[cap:116/ref:103/nl:101]  β=0.054  α_t=0.055  (5391s)
+step  6100  L_grcl=  1.76  L_cov= 0.29  L_cons=0.001  L_tot=  1.85  diag=+0.986  mix=[cap:100/ref:115/nl:105]  β=0.054  α_t=0.055  (5408s)
+step  6120  L_grcl=  1.75  L_cov= 0.30  L_cons=0.001  L_tot=  1.84  diag=+0.988  mix=[cap:107/ref:99/nl:114]  β=0.054  α_t=0.055  (5425s)
+step  6140  L_grcl=  1.75  L_cov= 0.30  L_cons=0.000  L_tot=  1.84  diag=+0.985  mix=[cap:100/ref:109/nl:111]  β=0.054  α_t=0.055  (5442s)
+step  6160  L_grcl=  1.77  L_cov= 0.31  L_cons=0.001  L_tot=  1.87  diag=+0.984  mix=[cap:100/ref:113/nl:107]  β=0.054  α_t=0.055  (5460s)
+step  6180  L_grcl=  1.73  L_cov= 0.29  L_cons=0.001  L_tot=  1.82  diag=+0.986  mix=[cap:104/ref:114/nl:102]  β=0.054  α_t=0.055  (5477s)
+step  6200  L_grcl=  1.74  L_cov= 0.30  L_cons=0.000  L_tot=  1.83  diag=+0.988  mix=[cap:97/ref:119/nl:104]  β=0.054  α_t=0.055  (5494s)
+step  6220  L_grcl=  1.75  L_cov= 0.30  L_cons=0.000  L_tot=  1.84  diag=+0.988  mix=[cap:117/ref:112/nl:91]  β=0.054  α_t=0.055  (5512s)
+step  6240  L_grcl=  1.73  L_cov= 0.30  L_cons=0.000  L_tot=  1.82  diag=+0.988  mix=[cap:105/ref:107/nl:108]  β=0.054  α_t=0.055  (5529s)
+step  6260  L_grcl=  1.73  L_cov= 0.29  L_cons=0.001  L_tot=  1.81  diag=+0.988  mix=[cap:108/ref:115/nl:97]  β=0.055  α_t=0.055  (5546s)
+step  6280  L_grcl=  1.78  L_cov= 0.30  L_cons=0.001  L_tot=  1.87  diag=+0.988  mix=[cap:114/ref:110/nl:96]  β=0.055  α_t=0.055  (5563s)
+step  6300  L_grcl=  1.75  L_cov= 0.31  L_cons=0.001  L_tot=  1.85  diag=+0.987  mix=[cap:99/ref:109/nl:112]  β=0.055  α_t=0.055  (5581s)
+step  6320  L_grcl=  1.71  L_cov= 0.28  L_cons=0.000  L_tot=  1.79  diag=+0.987  mix=[cap:127/ref:97/nl:96]  β=0.055  α_t=0.055  (5598s)
+step  6340  L_grcl=  1.73  L_cov= 0.30  L_cons=0.001  L_tot=  1.82  diag=+0.989  mix=[cap:110/ref:117/nl:93]  β=0.055  α_t=0.056  (5615s)
+step  6360  L_grcl=  1.77  L_cov= 0.30  L_cons=0.001  L_tot=  1.86  diag=+0.989  mix=[cap:111/ref:105/nl:104]  β=0.055  α_t=0.056  (5632s)
+step  6380  L_grcl=  1.72  L_cov= 0.29  L_cons=0.001  L_tot=  1.81  diag=+0.988  mix=[cap:101/ref:112/nl:107]  β=0.055  α_t=0.056  (5649s)
+step  6400  L_grcl=  1.73  L_cov= 0.29  L_cons=0.001  L_tot=  1.82  diag=+0.987  mix=[cap:103/ref:107/nl:110]  β=0.055  α_t=0.056  (5666s)
+step  6420  L_grcl=  1.72  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.986  mix=[cap:97/ref:111/nl:112]  β=0.055  α_t=0.056  (5683s)
+step  6440  L_grcl=  1.71  L_cov= 0.30  L_cons=0.000  L_tot=  1.80  diag=+0.986  mix=[cap:102/ref:118/nl:100]  β=0.055  α_t=0.056  (5701s)
+step  6460  L_grcl=  1.77  L_cov= 0.29  L_cons=0.001  L_tot=  1.86  diag=+0.987  mix=[cap:103/ref:117/nl:100]  β=0.055  α_t=0.056  (5718s)
+step  6480  L_grcl=  1.74  L_cov= 0.30  L_cons=0.000  L_tot=  1.83  diag=+0.987  mix=[cap:109/ref:112/nl:99]  β=0.055  α_t=0.056  (5736s)
+step  6500  L_grcl=  1.70  L_cov= 0.29  L_cons=0.001  L_tot=  1.79  diag=+0.987  mix=[cap:91/ref:124/nl:105]  β=0.055  α_t=0.056  (5753s)
+
+  [eval @ step 6500] held-out test-A...
+    cap-fig cos: +0.9915  (Δ +0.9695)
+    R@1/5/10: 18.5% / 59.0% / 85.5%  (Δ +18.5 / +59.0 / +85.5)
+    [ckpt saved @ step 6500 R@10=85.5%]
+
+step  6520  L_grcl=  1.64  L_cov= 0.27  L_cons=0.001  L_tot=  1.72  diag=+0.986  mix=[cap:98/ref:118/nl:104]  β=0.055  α_t=0.056  (5793s)
+step  6540  L_grcl=  1.70  L_cov= 0.29  L_cons=0.001  L_tot=  1.78  diag=+0.987  mix=[cap:109/ref:111/nl:100]  β=0.055  α_t=0.056  (5809s)
+step  6560  L_grcl=  1.69  L_cov= 0.28  L_cons=0.001  L_tot=  1.77  diag=+0.987  mix=[cap:115/ref:114/nl:91]  β=0.055  α_t=0.056  (5826s)
+step  6580  L_grcl=  1.72  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.985  mix=[cap:98/ref:115/nl:107]  β=0.055  α_t=0.056  (5843s)
+step  6600  L_grcl=  1.70  L_cov= 0.29  L_cons=0.001  L_tot=  1.79  diag=+0.984  mix=[cap:112/ref:111/nl:97]  β=0.055  α_t=0.056  (5859s)
+step  6620  L_grcl=  1.74  L_cov= 0.28  L_cons=0.001  L_tot=  1.83  diag=+0.986  mix=[cap:99/ref:107/nl:114]  β=0.055  α_t=0.056  (5877s)
+step  6640  L_grcl=  1.72  L_cov= 0.29  L_cons=0.001  L_tot=  1.81  diag=+0.985  mix=[cap:103/ref:114/nl:103]  β=0.055  α_t=0.056  (5894s)
+step  6660  L_grcl=  1.75  L_cov= 0.30  L_cons=0.001  L_tot=  1.84  diag=+0.987  mix=[cap:101/ref:107/nl:112]  β=0.055  α_t=0.056  (5911s)
+step  6680  L_grcl=  1.75  L_cov= 0.30  L_cons=0.001  L_tot=  1.84  diag=+0.985  mix=[cap:88/ref:113/nl:119]  β=0.055  α_t=0.056  (5928s)
+step  6700  L_grcl=  1.74  L_cov= 0.29  L_cons=0.001  L_tot=  1.82  diag=+0.986  mix=[cap:99/ref:114/nl:107]  β=0.055  α_t=0.056  (5945s)
+step  6720  L_grcl=  1.69  L_cov= 0.28  L_cons=0.001  L_tot=  1.78  diag=+0.987  mix=[cap:101/ref:114/nl:105]  β=0.055  α_t=0.056  (5962s)
+step  6740  L_grcl=  1.75  L_cov= 0.29  L_cons=0.000  L_tot=  1.84  diag=+0.986  mix=[cap:94/ref:112/nl:114]  β=0.055  α_t=0.056  (5980s)
+step  6760  L_grcl=  1.71  L_cov= 0.30  L_cons=0.001  L_tot=  1.80  diag=+0.988  mix=[cap:110/ref:111/nl:99]  β=0.055  α_t=0.056  (5997s)
+step  6780  L_grcl=  1.74  L_cov= 0.31  L_cons=0.001  L_tot=  1.83  diag=+0.986  mix=[cap:102/ref:120/nl:98]  β=0.055  α_t=0.056  (6014s)
+step  6800  L_grcl=  1.69  L_cov= 0.29  L_cons=0.001  L_tot=  1.78  diag=+0.987  mix=[cap:110/ref:105/nl:105]  β=0.055  α_t=0.056  (6031s)
+step  6820  L_grcl=  1.76  L_cov= 0.29  L_cons=0.001  L_tot=  1.85  diag=+0.986  mix=[cap:99/ref:109/nl:112]  β=0.055  α_t=0.056  (6049s)
+step  6840  L_grcl=  1.71  L_cov= 0.28  L_cons=0.001  L_tot=  1.80  diag=+0.987  mix=[cap:109/ref:109/nl:102]  β=0.055  α_t=0.056  (6066s)
+step  6860  L_grcl=  1.72  L_cov= 0.29  L_cons=0.001  L_tot=  1.81  diag=+0.986  mix=[cap:91/ref:114/nl:115]  β=0.055  α_t=0.056  (6083s)
+step  6880  L_grcl=  1.70  L_cov= 0.27  L_cons=0.001  L_tot=  1.78  diag=+0.987  mix=[cap:111/ref:113/nl:96]  β=0.055  α_t=0.056  (6100s)
+step  6900  L_grcl=  1.72  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.987  mix=[cap:102/ref:99/nl:119]  β=0.055  α_t=0.056  (6117s)
+step  6920  L_grcl=  1.71  L_cov= 0.28  L_cons=0.001  L_tot=  1.79  diag=+0.987  mix=[cap:119/ref:94/nl:107]  β=0.056  α_t=0.056  (6135s)
+step  6940  L_grcl=  1.72  L_cov= 0.29  L_cons=0.001  L_tot=  1.81  diag=+0.987  mix=[cap:109/ref:119/nl:92]  β=0.056  α_t=0.056  (6152s)
+step  6960  L_grcl=  1.66  L_cov= 0.28  L_cons=0.001  L_tot=  1.75  diag=+0.986  mix=[cap:116/ref:103/nl:101]  β=0.056  α_t=0.056  (6169s)
+step  6980  L_grcl=  1.71  L_cov= 0.29  L_cons=0.001  L_tot=  1.79  diag=+0.985  mix=[cap:102/ref:111/nl:107]  β=0.056  α_t=0.056  (6186s)
+step  7000  L_grcl=  1.71  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.985  mix=[cap:110/ref:100/nl:110]  β=0.056  α_t=0.056  (6203s)
+
+  [eval @ step 7000] held-out test-A...
+    cap-fig cos: +0.9912  (Δ +0.9692)
+    R@1/5/10: 21.5% / 66.0% / 86.5%  (Δ +21.5 / +66.0 / +86.5)
+    [ckpt saved @ step 7000 R@10=86.5%]
+
+step  7020  L_grcl=  1.71  L_cov= 0.29  L_cons=0.001  L_tot=  1.79  diag=+0.985  mix=[cap:98/ref:110/nl:112]  β=0.056  α_t=0.056  (6242s)
+step  7040  L_grcl=  1.65  L_cov= 0.27  L_cons=0.001  L_tot=  1.74  diag=+0.984  mix=[cap:111/ref:103/nl:106]  β=0.056  α_t=0.056  (6259s)
+step  7060  L_grcl=  1.82  L_cov= 0.29  L_cons=0.001  L_tot=  1.91  diag=+0.985  mix=[cap:96/ref:112/nl:112]  β=0.056  α_t=0.056  (6276s)
+step  7080  L_grcl=  1.71  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.987  mix=[cap:108/ref:110/nl:102]  β=0.056  α_t=0.056  (6292s)
+step  7100  L_grcl=  1.72  L_cov= 0.27  L_cons=0.001  L_tot=  1.80  diag=+0.985  mix=[cap:97/ref:103/nl:120]  β=0.056  α_t=0.056  (6309s)
+step  7120  L_grcl=  1.71  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.986  mix=[cap:100/ref:119/nl:101]  β=0.056  α_t=0.056  (6325s)
+step  7140  L_grcl=  1.72  L_cov= 0.29  L_cons=0.001  L_tot=  1.81  diag=+0.983  mix=[cap:111/ref:100/nl:109]  β=0.056  α_t=0.056  (6342s)
+step  7160  L_grcl=  1.72  L_cov= 0.28  L_cons=0.001  L_tot=  1.80  diag=+0.986  mix=[cap:108/ref:118/nl:94]  β=0.056  α_t=0.056  (6359s)
+step  7180  L_grcl=  1.67  L_cov= 0.29  L_cons=0.001  L_tot=  1.76  diag=+0.987  mix=[cap:115/ref:104/nl:101]  β=0.056  α_t=0.056  (6376s)
+step  7200  L_grcl=  1.71  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.986  mix=[cap:105/ref:106/nl:109]  β=0.056  α_t=0.056  (6392s)
+step  7220  L_grcl=  1.74  L_cov= 0.29  L_cons=0.001  L_tot=  1.83  diag=+0.987  mix=[cap:116/ref:100/nl:104]  β=0.056  α_t=0.056  (6409s)
+step  7240  L_grcl=  1.69  L_cov= 0.28  L_cons=0.001  L_tot=  1.78  diag=+0.987  mix=[cap:114/ref:106/nl:100]  β=0.056  α_t=0.056  (6426s)
+step  7260  L_grcl=  1.69  L_cov= 0.30  L_cons=0.001  L_tot=  1.78  diag=+0.988  mix=[cap:101/ref:101/nl:118]  β=0.056  α_t=0.056  (6443s)
+step  7280  L_grcl=  1.63  L_cov= 0.28  L_cons=0.001  L_tot=  1.72  diag=+0.986  mix=[cap:117/ref:94/nl:109]  β=0.056  α_t=0.056  (6459s)
+step  7300  L_grcl=  1.73  L_cov= 0.30  L_cons=0.001  L_tot=  1.82  diag=+0.987  mix=[cap:107/ref:120/nl:93]  β=0.056  α_t=0.057  (6476s)
+step  7320  L_grcl=  1.73  L_cov= 0.29  L_cons=0.001  L_tot=  1.82  diag=+0.988  mix=[cap:106/ref:103/nl:111]  β=0.056  α_t=0.057  (6493s)
+step  7340  L_grcl=  1.70  L_cov= 0.27  L_cons=0.001  L_tot=  1.78  diag=+0.987  mix=[cap:109/ref:110/nl:101]  β=0.056  α_t=0.057  (6511s)
+step  7360  L_grcl=  1.73  L_cov= 0.29  L_cons=0.001  L_tot=  1.82  diag=+0.987  mix=[cap:104/ref:115/nl:101]  β=0.056  α_t=0.057  (6528s)
+step  7380  L_grcl=  1.72  L_cov= 0.28  L_cons=0.001  L_tot=  1.81  diag=+0.987  mix=[cap:106/ref:104/nl:110]  β=0.056  α_t=0.057  (6545s)
+step  7400  L_grcl=  1.71  L_cov= 0.30  L_cons=0.001  L_tot=  1.80  diag=+0.987  mix=[cap:99/ref:97/nl:124]  β=0.056  α_t=0.057  (6564s)
+step  7420  L_grcl=  1.75  L_cov= 0.29  L_cons=0.001  L_tot=  1.83  diag=+0.987  mix=[cap:89/ref:114/nl:117]  β=0.056  α_t=0.057  (6581s)
+step  7440  L_grcl=  1.67  L_cov= 0.27  L_cons=0.001  L_tot=  1.75  diag=+0.986  mix=[cap:116/ref:103/nl:101]  β=0.056  α_t=0.057  (6598s)
+step  7460  L_grcl=  1.74  L_cov= 0.30  L_cons=0.001  L_tot=  1.83  diag=+0.981  mix=[cap:100/ref:108/nl:112]  β=0.056  α_t=0.057  (6615s)
+step  7480  L_grcl=  1.65  L_cov= 0.28  L_cons=0.001  L_tot=  1.73  diag=+0.982  mix=[cap:110/ref:117/nl:93]  β=0.056  α_t=0.057  (6632s)
+step  7500  L_grcl=  1.66  L_cov= 0.27  L_cons=0.001  L_tot=  1.74  diag=+0.982  mix=[cap:115/ref:111/nl:94]  β=0.056  α_t=0.057  (6649s)
+
+  [eval @ step 7500] held-out test-A...
+    cap-fig cos: +0.9873  (Δ +0.9653)
+    R@1/5/10: 19.5% / 68.5% / 86.5%  (Δ +19.5 / +68.5 / +86.5)
+
+step  7520  L_grcl=  1.66  L_cov= 0.27  L_cons=0.001  L_tot=  1.74  diag=+0.983  mix=[cap:113/ref:102/nl:105]  β=0.056  α_t=0.057  (6678s)
+step  7540  L_grcl=  1.73  L_cov= 0.29  L_cons=0.001  L_tot=  1.82  diag=+0.984  mix=[cap:120/ref:110/nl:90]  β=0.056  α_t=0.057  (6696s)
+step  7560  L_grcl=  1.71  L_cov= 0.28  L_cons=0.001  L_tot=  1.80  diag=+0.984  mix=[cap:101/ref:115/nl:104]  β=0.057  α_t=0.057  (6713s)
+step  7580  L_grcl=  1.72  L_cov= 0.31  L_cons=0.001  L_tot=  1.82  diag=+0.986  mix=[cap:114/ref:102/nl:104]  β=0.057  α_t=0.057  (6731s)
+step  7600  L_grcl=  1.69  L_cov= 0.29  L_cons=0.001  L_tot=  1.78  diag=+0.985  mix=[cap:108/ref:103/nl:109]  β=0.057  α_t=0.057  (6748s)
+step  7620  L_grcl=  1.68  L_cov= 0.28  L_cons=0.001  L_tot=  1.77  diag=+0.987  mix=[cap:117/ref:97/nl:106]  β=0.057  α_t=0.057  (6765s)
+step  7640  L_grcl=  1.72  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.985  mix=[cap:104/ref:107/nl:109]  β=0.057  α_t=0.057  (6782s)
+step  7660  L_grcl=  1.72  L_cov= 0.28  L_cons=0.001  L_tot=  1.80  diag=+0.986  mix=[cap:107/ref:109/nl:104]  β=0.057  α_t=0.057  (6799s)
+step  7680  L_grcl=  1.74  L_cov= 0.30  L_cons=0.001  L_tot=  1.83  diag=+0.985  mix=[cap:97/ref:106/nl:117]  β=0.057  α_t=0.057  (6817s)
+step  7700  L_grcl=  1.72  L_cov= 0.29  L_cons=0.001  L_tot=  1.81  diag=+0.987  mix=[cap:122/ref:112/nl:86]  β=0.057  α_t=0.057  (6834s)
+step  7720  L_grcl=  1.69  L_cov= 0.28  L_cons=0.001  L_tot=  1.77  diag=+0.986  mix=[cap:93/ref:101/nl:126]  β=0.057  α_t=0.057  (6851s)
+step  7740  L_grcl=  1.74  L_cov= 0.29  L_cons=0.001  L_tot=  1.83  diag=+0.986  mix=[cap:99/ref:111/nl:110]  β=0.057  α_t=0.057  (6868s)
+step  7760  L_grcl=  1.67  L_cov= 0.30  L_cons=0.001  L_tot=  1.76  diag=+0.985  mix=[cap:111/ref:103/nl:106]  β=0.057  α_t=0.057  (6885s)
+step  7780  L_grcl=  1.65  L_cov= 0.27  L_cons=0.001  L_tot=  1.73  diag=+0.985  mix=[cap:130/ref:93/nl:97]  β=0.057  α_t=0.057  (6903s)
+step  7800  L_grcl=  1.68  L_cov= 0.28  L_cons=0.001  L_tot=  1.76  diag=+0.986  mix=[cap:118/ref:113/nl:89]  β=0.057  α_t=0.057  (6921s)
+step  7820  L_grcl=  1.72  L_cov= 0.30  L_cons=0.001  L_tot=  1.81  diag=+0.986  mix=[cap:100/ref:109/nl:111]  β=0.057  α_t=0.057  (6938s)
+step  7840  L_grcl=  1.65  L_cov= 0.27  L_cons=0.001  L_tot=  1.74  diag=+0.986  mix=[cap:125/ref:97/nl:98]  β=0.057  α_t=0.057  (6955s)
+step  7860  L_grcl=  1.68  L_cov= 0.28  L_cons=0.001  L_tot=  1.77  diag=+0.985  mix=[cap:108/ref:110/nl:102]  β=0.057  α_t=0.057  (6972s)
+step  7880  L_grcl=  1.66  L_cov= 0.27  L_cons=0.001  L_tot=  1.74  diag=+0.984  mix=[cap:108/ref:105/nl:107]  β=0.057  α_t=0.057  (6989s)
+step  7900  L_grcl=  1.72  L_cov= 0.30  L_cons=0.001  L_tot=  1.81  diag=+0.986  mix=[cap:109/ref:105/nl:106]  β=0.057  α_t=0.057  (7007s)
+step  7920  L_grcl=  1.72  L_cov= 0.28  L_cons=0.001  L_tot=  1.81  diag=+0.986  mix=[cap:107/ref:119/nl:94]  β=0.057  α_t=0.057  (7024s)
+step  7940  L_grcl=  1.69  L_cov= 0.28  L_cons=0.001  L_tot=  1.77  diag=+0.985  mix=[cap:103/ref:104/nl:113]  β=0.057  α_t=0.057  (7041s)
+step  7960  L_grcl=  1.68  L_cov= 0.28  L_cons=0.001  L_tot=  1.76  diag=+0.984  mix=[cap:100/ref:116/nl:104]  β=0.057  α_t=0.057  (7058s)
+step  7980  L_grcl=  1.73  L_cov= 0.30  L_cons=0.001  L_tot=  1.82  diag=+0.984  mix=[cap:102/ref:121/nl:97]  β=0.057  α_t=0.057  (7076s)
+step  8000  L_grcl=  1.72  L_cov= 0.29  L_cons=0.001  L_tot=  1.80  diag=+0.985  mix=[cap:100/ref:113/nl:107]  β=0.057  α_t=0.057  (7093s)
+
+  [eval @ step 8000] held-out test-A...
+    cap-fig cos: +0.9917  (Δ +0.9697)
+    R@1/5/10: 15.0% / 65.5% / 83.0%  (Δ +15.0 / +65.5 / +83.0)
+
+
+[final] test-A:
+  cap-fig cos: +0.9917  (init +0.0220, Δ +0.9697)
+  R@1/5/10: 15.0% / 65.5% / 83.0%
+  init R@1/5/10: 0.0% / 0.0% / 0.0%
+
+saved → /home/work/dl/dl_project/eval/results/experiments/lora_r32_lora_r32/train.json
+[main1:129941:0:129941] Caught signal 11 (Segmentation fault: address not mapped to object at address 0x7f92cc3adec0)
+  training exited with code -11 but train.json + ckpt look complete — treating as success
+  training done in 121.7 min
+
+--- Evaluation ---
+$ /usr/bin/python -m pipeline.eval_full --out /home/work/dl/dl_project/eval/results/experiments/lora_r32_lora_r32/eval.json --device cuda --ckpt ckpt/lora_r32_lora_r32.pt --lora_rank 32 --lora_alpha 64 --hf_id google/siglip2-base-patch16-224 --gpe_facets type,role,depth,pos --datasets spiqa_testA sciegqa mmdocir
+device: cuda
+[ElementTokenEncoder] loading google/siglip2-base-patch16-224
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+[ElementTokenEncoder] LoRA r=32 α=64 targets=['q_proj', 'k_proj', 'v_proj', 'out_proj'] applied (d_text=768, d_vision=768, cls=False)
+trainable params: 4,767,744 || all params: 379,955,714 || trainable%: 1.2548
+[eval_full] loaded checkpoint: ckpt/lora_r32_lora_r32.pt
+
+[eval] SPIQA test-A
+  graph: 118 docs, elements: 9039, queries: 666
+  [5/118 docs, 26/666 queries] 2s
+  [10/118 docs, 59/666 queries] 5s
+  [15/118 docs, 82/666 queries] 7s
+  [20/118 docs, 105/666 queries] 9s
+  [25/118 docs, 132/666 queries] 11s
+  [30/118 docs, 161/666 queries] 13s
+  [35/118 docs, 181/666 queries] 15s
+  [40/118 docs, 217/666 queries] 18s
+  [45/118 docs, 242/666 queries] 20s
+  [50/118 docs, 269/666 queries] 22s
+  [55/118 docs, 285/666 queries] 24s
+  [60/118 docs, 313/666 queries] 26s
+  [65/118 docs, 352/666 queries] 29s
+  [70/118 docs, 396/666 queries] 32s
+  [75/118 docs, 445/666 queries] 36s
+  [80/118 docs, 481/666 queries] 39s
+  [85/118 docs, 514/666 queries] 41s
+  [90/118 docs, 535/666 queries] 43s
+  [95/118 docs, 560/666 queries] 45s
+  [100/118 docs, 590/666 queries] 48s
+  [105/118 docs, 616/666 queries] 50s
+  [110/118 docs, 640/666 queries] 52s
+  [115/118 docs, 663/666 queries] 54s
+  done in 54s
+
+[eval] SciEGQA
+  graph: 80 docs, elements: 29412, queries: 1623
+  [5/80 docs, 108/1623 queries] 11s
+  [10/80 docs, 218/1623 queries] 26s
+  [15/80 docs, 325/1623 queries] 37s
+  [20/80 docs, 427/1623 queries] 60s
+  [25/80 docs, 532/1623 queries] 72s
+  [30/80 docs, 630/1623 queries] 89s
+  [35/80 docs, 733/1623 queries] 105s
+  [40/80 docs, 818/1623 queries] 114s
+  [45/80 docs, 927/1623 queries] 126s
+  [50/80 docs, 1031/1623 queries] 138s
+  [55/80 docs, 1102/1623 queries] 148s
+  [60/80 docs, 1207/1623 queries] 159s
+  [65/80 docs, 1314/1623 queries] 178s
+  [70/80 docs, 1423/1623 queries] 196s
+  [75/80 docs, 1513/1623 queries] 205s
+  [80/80 docs, 1623/1623 queries] 221s
+  done in 221s
+
+[eval] MMDocIR
+  graph: 75 docs, elements: 15032, queries: 389
+  [5/75 docs, 31/389 queries] 5s
+  [10/75 docs, 58/389 queries] 8s
+  [15/75 docs, 87/389 queries] 14s
+  [20/75 docs, 116/389 queries] 17s
+  [25/75 docs, 137/389 queries] 20s
+  [30/75 docs, 162/389 queries] 22s
+  [35/75 docs, 187/389 queries] 24s
+  [40/75 docs, 212/389 queries] 26s
+  [45/75 docs, 243/389 queries] 28s
+  [50/75 docs, 267/389 queries] 30s
+  [55/75 docs, 288/389 queries] 32s
+  [60/75 docs, 306/389 queries] 33s
+  [65/75 docs, 332/389 queries] 35s
+  [70/75 docs, 364/389 queries] 38s
+  [75/75 docs, 389/389 queries] 40s
+  done in 40s
+
+saved → /home/work/dl/dl_project/eval/results/experiments/lora_r32_lora_r32/eval.json
+
+=== Summary ===
+
+SPIQA test-A:
+  [no_prop] mrr=0.3880  recall@10=0.8468  hit@10=0.8468  coverage@10=0.8468  perfect@10=0.8468
+  [uniform_a01_T2] mrr=0.2784  recall@10=0.6967  hit@10=0.6967  coverage@10=0.6967  perfect@10=0.6967
+  [uniform_a03_T1] mrr=0.2844  recall@10=0.7342  hit@10=0.7342  coverage@10=0.7342  perfect@10=0.7342
+  [uniform_a03_T2] mrr=0.2748  recall@10=0.6637  hit@10=0.6637  coverage@10=0.6637  perfect@10=0.6637
+  [uniform_a03_T3] mrr=0.2866  recall@10=0.6817  hit@10=0.6817  coverage@10=0.6817  perfect@10=0.6817
+  [uniform_a05_T2] mrr=0.2829  recall@10=0.6742  hit@10=0.6742  coverage@10=0.6742  perfect@10=0.6742
+  [wbase_a03_T2] mrr=0.3020  recall@10=0.7042  hit@10=0.7042  coverage@10=0.7042  perfect@10=0.7042
+  [wbase_role_a03_T2] mrr=0.3020  recall@10=0.7042  hit@10=0.7042  coverage@10=0.7042  perfect@10=0.7042
+  [wbase_vis_a03_T2] mrr=0.3010  recall@10=0.7042  hit@10=0.7042  coverage@10=0.7042  perfect@10=0.7042
+  [wfull_a03_T2] mrr=0.3010  recall@10=0.7042  hit@10=0.7042  coverage@10=0.7042  perfect@10=0.7042
+  [wfull_a01_T2] mrr=0.3067  recall@10=0.7282  hit@10=0.7282  coverage@10=0.7282  perfect@10=0.7282
+  [wfull_a05_T2] mrr=0.3070  recall@10=0.6997  hit@10=0.6997  coverage@10=0.6997  perfect@10=0.6997
+  [wfull_a07_T2] mrr=0.2884  recall@10=0.6577  hit@10=0.6577  coverage@10=0.6577  perfect@10=0.6577
+  [wfull_a03_T1] mrr=0.3143  recall@10=0.7793  hit@10=0.7793  coverage@10=0.7793  perfect@10=0.7793
+  [wfull_a03_T3] mrr=0.3059  recall@10=0.6997  hit@10=0.6997  coverage@10=0.6997  perfect@10=0.6997
+  [ppr_a015] mrr=0.2885  recall@10=0.6366  hit@10=0.6366  coverage@10=0.6366  perfect@10=0.6366
+  [ppr_a030] mrr=0.3029  recall@10=0.6502  hit@10=0.6502  coverage@10=0.6502  perfect@10=0.6502
+  [ppr_a050] mrr=0.3157  recall@10=0.6877  hit@10=0.6877  coverage@10=0.6877  perfect@10=0.6877
+  [ppr_a070] mrr=0.3089  recall@10=0.7162  hit@10=0.7162  coverage@10=0.7162  perfect@10=0.7162
+  [ppr_a085] mrr=0.3101  recall@10=0.7282  hit@10=0.7282  coverage@10=0.7282  perfect@10=0.7282
+  [ppr_unif_a030] mrr=0.2944  recall@10=0.6486  hit@10=0.6486  coverage@10=0.6486  perfect@10=0.6486
+  [ppr_unif_a050] mrr=0.2923  recall@10=0.6787  hit@10=0.6787  coverage@10=0.6787  perfect@10=0.6787
+  [prop_a03_T2] mrr=0.3010  recall@10=0.7042  hit@10=0.7042  coverage@10=0.7042  perfect@10=0.7042
+  [prop_a01_T2] mrr=0.3067  recall@10=0.7282  hit@10=0.7282  coverage@10=0.7282  perfect@10=0.7282
+  [prop_a05_T2] mrr=0.3070  recall@10=0.6997  hit@10=0.6997  coverage@10=0.6997  perfect@10=0.6997
+  [prop_a07_T2] mrr=0.2884  recall@10=0.6577  hit@10=0.6577  coverage@10=0.6577  perfect@10=0.6577
+  [prop_a03_T1] mrr=0.3143  recall@10=0.7793  hit@10=0.7793  coverage@10=0.7793  perfect@10=0.7793
+  [prop_a03_T3] mrr=0.3059  recall@10=0.6997  hit@10=0.6997  coverage@10=0.6997  perfect@10=0.6997
+
+SciEGQA:
+  [no_prop] mrr=0.0401  recall@10=0.0130  hit@10=0.0807  coverage@10=0.0130  perfect@10=0.0092  cross_page_hit=0.2975
+  [uniform_a01_T2] mrr=0.0378  recall@10=0.0140  hit@10=0.0739  coverage@10=0.0140  perfect@10=0.0105  cross_page_hit=0.1835
+  [uniform_a03_T1] mrr=0.0365  recall@10=0.0152  hit@10=0.0770  coverage@10=0.0152  perfect@10=0.0117  cross_page_hit=0.1899
+  [uniform_a03_T2] mrr=0.0376  recall@10=0.0149  hit@10=0.0746  coverage@10=0.0149  perfect@10=0.0111  cross_page_hit=0.1614
+  [uniform_a03_T3] mrr=0.0374  recall@10=0.0140  hit@10=0.0715  coverage@10=0.0140  perfect@10=0.0111  cross_page_hit=0.1551
+  [uniform_a05_T2] mrr=0.0383  recall@10=0.0148  hit@10=0.0733  coverage@10=0.0148  perfect@10=0.0111  cross_page_hit=0.1551
+  [wbase_a03_T2] mrr=0.0394  recall@10=0.0147  hit@10=0.0739  coverage@10=0.0147  perfect@10=0.0111  cross_page_hit=0.1614
+  [wbase_role_a03_T2] mrr=0.0394  recall@10=0.0147  hit@10=0.0739  coverage@10=0.0147  perfect@10=0.0111  cross_page_hit=0.1614
+  [wbase_vis_a03_T2] mrr=0.0394  recall@10=0.0147  hit@10=0.0739  coverage@10=0.0147  perfect@10=0.0111  cross_page_hit=0.1614
+  [wfull_a03_T2] mrr=0.0394  recall@10=0.0147  hit@10=0.0739  coverage@10=0.0147  perfect@10=0.0111  cross_page_hit=0.1614
+  [wfull_a01_T2] mrr=0.0381  recall@10=0.0141  hit@10=0.0739  coverage@10=0.0141  perfect@10=0.0105  cross_page_hit=0.1835
+  [wfull_a05_T2] mrr=0.0396  recall@10=0.0146  hit@10=0.0727  coverage@10=0.0146  perfect@10=0.0111  cross_page_hit=0.1551
+  [wfull_a07_T2] mrr=0.0405  recall@10=0.0145  hit@10=0.0727  coverage@10=0.0145  perfect@10=0.0111  cross_page_hit=0.1614
+  [wfull_a03_T1] mrr=0.0377  recall@10=0.0156  hit@10=0.0776  coverage@10=0.0156  perfect@10=0.0117  cross_page_hit=0.1867
+  [wfull_a03_T3] mrr=0.0389  recall@10=0.0141  hit@10=0.0715  coverage@10=0.0141  perfect@10=0.0111  cross_page_hit=0.1551
+  [ppr_a015] mrr=0.0401  recall@10=0.0146  hit@10=0.0702  coverage@10=0.0146  perfect@10=0.0111  cross_page_hit=0.1487
+  [ppr_a030] mrr=0.0404  recall@10=0.0141  hit@10=0.0709  coverage@10=0.0141  perfect@10=0.0111  cross_page_hit=0.1551
+  [ppr_a050] mrr=0.0390  recall@10=0.0145  hit@10=0.0733  coverage@10=0.0145  perfect@10=0.0111  cross_page_hit=0.1646
+  [ppr_a070] mrr=0.0394  recall@10=0.0141  hit@10=0.0733  coverage@10=0.0141  perfect@10=0.0111  cross_page_hit=0.1772
+  [ppr_a085] mrr=0.0399  recall@10=0.0138  hit@10=0.0739  coverage@10=0.0138  perfect@10=0.0105  cross_page_hit=0.1867
+  [ppr_unif_a030] mrr=0.0378  recall@10=0.0143  hit@10=0.0715  coverage@10=0.0143  perfect@10=0.0111  cross_page_hit=0.1551
+  [ppr_unif_a050] mrr=0.0378  recall@10=0.0144  hit@10=0.0739  coverage@10=0.0144  perfect@10=0.0111  cross_page_hit=0.1646
+  [prop_a03_T2] mrr=0.0394  recall@10=0.0147  hit@10=0.0739  coverage@10=0.0147  perfect@10=0.0111  cross_page_hit=0.1614
+  [prop_a01_T2] mrr=0.0381  recall@10=0.0141  hit@10=0.0739  coverage@10=0.0141  perfect@10=0.0105  cross_page_hit=0.1835
+  [prop_a05_T2] mrr=0.0396  recall@10=0.0146  hit@10=0.0727  coverage@10=0.0146  perfect@10=0.0111  cross_page_hit=0.1551
+  [prop_a07_T2] mrr=0.0405  recall@10=0.0145  hit@10=0.0727  coverage@10=0.0145  perfect@10=0.0111  cross_page_hit=0.1614
+  [prop_a03_T1] mrr=0.0377  recall@10=0.0156  hit@10=0.0776  coverage@10=0.0156  perfect@10=0.0117  cross_page_hit=0.1867
+  [prop_a03_T3] mrr=0.0389  recall@10=0.0141  hit@10=0.0715  coverage@10=0.0141  perfect@10=0.0111  cross_page_hit=0.1551
+
+MMDocIR:
+  [no_prop] mrr=0.0286  recall@10=0.0217  hit@10=0.0411  coverage@10=0.0217  perfect@10=0.0231  cross_page_hit=0.1525
+  [uniform_a01_T2] mrr=0.0281  recall@10=0.0334  hit@10=0.0488  coverage@10=0.0334  perfect@10=0.0360  cross_page_hit=0.0678
+  [uniform_a03_T1] mrr=0.0292  recall@10=0.0360  hit@10=0.0514  coverage@10=0.0360  perfect@10=0.0386  cross_page_hit=0.0678
+  [uniform_a03_T2] mrr=0.0291  recall@10=0.0373  hit@10=0.0540  coverage@10=0.0373  perfect@10=0.0386  cross_page_hit=0.0678
+  [uniform_a03_T3] mrr=0.0289  recall@10=0.0386  hit@10=0.0540  coverage@10=0.0386  perfect@10=0.0411  cross_page_hit=0.0678
+  [uniform_a05_T2] mrr=0.0291  recall@10=0.0386  hit@10=0.0540  coverage@10=0.0386  perfect@10=0.0411  cross_page_hit=0.0678
+  [wbase_a03_T2] mrr=0.0291  recall@10=0.0373  hit@10=0.0540  coverage@10=0.0373  perfect@10=0.0386  cross_page_hit=0.0678
+  [wbase_role_a03_T2] mrr=0.0291  recall@10=0.0373  hit@10=0.0540  coverage@10=0.0373  perfect@10=0.0386  cross_page_hit=0.0678
+  [wbase_vis_a03_T2] mrr=0.0291  recall@10=0.0373  hit@10=0.0540  coverage@10=0.0373  perfect@10=0.0386  cross_page_hit=0.0678
+  [wfull_a03_T2] mrr=0.0291  recall@10=0.0373  hit@10=0.0540  coverage@10=0.0373  perfect@10=0.0386  cross_page_hit=0.0678
+  [wfull_a01_T2] mrr=0.0281  recall@10=0.0334  hit@10=0.0488  coverage@10=0.0334  perfect@10=0.0360  cross_page_hit=0.0678
+  [wfull_a05_T2] mrr=0.0291  recall@10=0.0386  hit@10=0.0540  coverage@10=0.0386  perfect@10=0.0411  cross_page_hit=0.0678
+  [wfull_a07_T2] mrr=0.0296  recall@10=0.0399  hit@10=0.0540  coverage@10=0.0399  perfect@10=0.0437  cross_page_hit=0.0678
+  [wfull_a03_T1] mrr=0.0292  recall@10=0.0360  hit@10=0.0514  coverage@10=0.0360  perfect@10=0.0386  cross_page_hit=0.0678
+  [wfull_a03_T3] mrr=0.0289  recall@10=0.0386  hit@10=0.0540  coverage@10=0.0386  perfect@10=0.0411  cross_page_hit=0.0678
+  [ppr_a015] mrr=0.0291  recall@10=0.0373  hit@10=0.0514  coverage@10=0.0373  perfect@10=0.0411  cross_page_hit=0.0678
+  [ppr_a030] mrr=0.0291  recall@10=0.0360  hit@10=0.0514  coverage@10=0.0360  perfect@10=0.0386  cross_page_hit=0.0678
+  [ppr_a050] mrr=0.0286  recall@10=0.0347  hit@10=0.0514  coverage@10=0.0347  perfect@10=0.0360  cross_page_hit=0.0678
+  [ppr_a070] mrr=0.0284  recall@10=0.0347  hit@10=0.0514  coverage@10=0.0347  perfect@10=0.0360  cross_page_hit=0.0678
+  [ppr_a085] mrr=0.0282  recall@10=0.0347  hit@10=0.0514  coverage@10=0.0347  perfect@10=0.0360  cross_page_hit=0.0678
+  [ppr_unif_a030] mrr=0.0291  recall@10=0.0360  hit@10=0.0514  coverage@10=0.0360  perfect@10=0.0386  cross_page_hit=0.0678
+  [ppr_unif_a050] mrr=0.0286  recall@10=0.0347  hit@10=0.0514  coverage@10=0.0347  perfect@10=0.0360  cross_page_hit=0.0678
+  [prop_a03_T2] mrr=0.0291  recall@10=0.0373  hit@10=0.0540  coverage@10=0.0373  perfect@10=0.0386  cross_page_hit=0.0678
+  [prop_a01_T2] mrr=0.0281  recall@10=0.0334  hit@10=0.0488  coverage@10=0.0334  perfect@10=0.0360  cross_page_hit=0.0678
+  [prop_a05_T2] mrr=0.0291  recall@10=0.0386  hit@10=0.0540  coverage@10=0.0386  perfect@10=0.0411  cross_page_hit=0.0678
+  [prop_a07_T2] mrr=0.0296  recall@10=0.0399  hit@10=0.0540  coverage@10=0.0399  perfect@10=0.0437  cross_page_hit=0.0678
+  [prop_a03_T1] mrr=0.0292  recall@10=0.0360  hit@10=0.0514  coverage@10=0.0360  perfect@10=0.0386  cross_page_hit=0.0678
+  [prop_a03_T3] mrr=0.0289  recall@10=0.0386  hit@10=0.0540  coverage@10=0.0386  perfect@10=0.0411  cross_page_hit=0.0678
+[main1:130193:0:130193] Caught signal 11 (Segmentation fault: address not mapped to object at address 0x7fc9155adec0)
+==== backtrace (tid: 130193) ====
+ 0  /opt/hpcx/ucx/lib/libucs.so.0(ucs_handle_error+0x2e4) [0x7fc89eba5774]
+ 1  /opt/hpcx/ucx/lib/libucs.so.0(+0x3796a) [0x7fc89eba596a]
+ 2  /opt/hpcx/ucx/lib/libucs.so.0(+0x37ba8) [0x7fc89eba5ba8]
+ 3  /usr/lib/x86_64-linux-gnu/libc.so.6(+0x45330) [0x7fc915833330]
+ 4  /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.575.51.03(+0x336c1) [0x7fc90ee336c1]
+ 5  /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.575.51.03(nvmlShutdown+0xe) [0x7fc90ee1cfae]
+ 6  /opt/kernel/libcudahook.ubuntu18.04.x86_64.so(+0xc3caf) [0x7fc915ac3caf]
+ 7  /opt/kernel/libcudahook.ubuntu18.04.x86_64.so(+0xc3d48) [0x7fc915ac3d48]
+ 8  /opt/kernel/libcudahook.ubuntu18.04.x86_64.so(+0xc3a2d) [0x7fc915ac3a2d]
+ 9  /lib64/ld-linux-x86-64.so.2(+0x10f2) [0x7fc91651b0f2]
+10  /lib64/ld-linux-x86-64.so.2(+0x5578) [0x7fc91651f578]
+11  /usr/lib/x86_64-linux-gnu/libc.so.6(+0x47a76) [0x7fc915835a76]
+12  /usr/lib/x86_64-linux-gnu/libc.so.6(+0x47bbe) [0x7fc915835bbe]
+13  /usr/lib/x86_64-linux-gnu/libc.so.6(+0x2a1d1) [0x7fc9158181d1]
+14  /usr/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b) [0x7fc91581828b]
+15  /usr/bin/python(_start+0x25) [0x657ce5]
+=================================
+  eval exited with code -11 but eval.json looks complete — treating as success
+  eval done in 5.6 min
+
+=== Experiment lora_r32 complete → /home/work/dl/dl_project/eval/results/experiments/lora_r32_lora_r32/summary.json ===

@@ -1,0 +1,14 @@
+{
+  "config_id": "gme",
+  "config": {
+    "row_id": "gme",
+    "name": "gme_qwen2vl_zero_shot",
+    "description": "GME-Qwen2-VL-2B zero-shot (no training); inference variants applied at eval time",
+    "skip_training": true,
+    "encoder_kind": "gme",
+    "hf_id": "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
+  },
+  "ckpt": "ckpt/gme_gme_qwen2vl_zero_shot.pt",
+  "train_log": null,
+  "eval_log": "/home/work/dl/dl_project/eval/results/experiments/gme_gme_qwen2vl_zero_shot/eval.json"
+}
