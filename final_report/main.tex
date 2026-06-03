@@ -61,21 +61,17 @@ $33.1$ to $\mathbf{63.3}$ ($+30$pp) \emph{without any fine-tuning}.
 \section{Introduction}
 
 Retrieval on academic papers couples two challenges. First, current
-multimodal encoders perform unevenly when a text query must surface a
-visual element: compact dual encoders such as CLIP and
-SigLIP~\cite{siglip2} score poorly on academic figure and table retrieval,
-while larger retrieval-tuned MLLMs (e.g., GME-Qwen2-VL-2B~\cite{gme})
-reach usable accuracy---suggesting that text-image alignment alone is a
-weak signal for this domain. Second, even when the retrieval target is
-a single element, it rarely stands alone: a figure is bound to its
-caption, the citing paragraphs, and sometimes an appendix reference
-through typed relations like \texttt{caption\_of} and \texttt{refer\_to},
-so surfacing it benefits from these structural relations even when only
-the focal element is annotated as ground truth. Page-level visual
-RAG~\cite{colpali,visrag} returns coarse units that cannot pinpoint the
-element evidence and tends to miss cross-page references; element-level
-retrieval without a graph prior ranks each candidate independently and
-ignores the typed relations.
+multimodal encoders perform unevenly on academic visual elements:
+compact dual encoders such as CLIP and SigLIP~\cite{siglip2} score
+poorly on figure/table retrieval, while retrieval-tuned MLLMs like
+GME-Qwen2-VL-2B~\cite{gme} reach usable accuracy. Second, even when the
+retrieval target is a single element, it rarely stands alone---a figure
+is bound to its caption, the citing paragraphs, and sometimes an
+appendix reference through typed relations like \texttt{caption\_of}
+and \texttt{refer\_to}. Page-level visual RAG~\cite{colpali,visrag}
+returns coarse units that cannot pinpoint the element evidence;
+element-level retrieval without a graph prior ignores these typed
+relations.
 
 We propose a \emph{structure-aware} retrieval framework in which the
 document's typed element graph is a single source of truth, with one
