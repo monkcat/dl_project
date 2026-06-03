@@ -69,19 +69,19 @@ page-level visual RAG~\cite{colpali,visrag} can miss cross-page evidence,
 and element-level retrieval without graph priors ranks each candidate
 independently.
 
-We propose using the document's typed element graph as a \emph{single
-source of truth}, with one edge-weight schema driving two independent
-contributions. \textbf{(C1) Graph-Relevance Contrastive Loss (GRCL):} a
-2-hop max-product path kernel defines a graded relevance distribution over
-candidates; a listwise cross-entropy fits the retriever to it. GRCL
-strictly generalizes binary InfoNCE. \textbf{(C2) Plug-in graph
-propagation:} the \emph{same} edge weights construct a transition matrix
-used by weighted diffusion or Personalized PageRank to smooth any base
-retriever's scores; no retraining is required. Empirically, applying~(C2)
-to the external retrieval-tuned MLLM GME-Qwen2-VL-2B~\cite{gme} raises its
-SPIQA R@10 from $58.3$ to $84.4$ ($+26$pp) and almost doubles its MRR
-($33.1\!\to\!63.3$), evidence that the graph functions as an
-\emph{encoder-agnostic universal prior}.
+We propose using the document's typed element graph as a single source of
+truth for retrieval, with one edge-weight schema serving two distinct
+roles. At training time, a 2-hop max-product path kernel turns the graph
+into a graded relevance distribution that supervises a listwise
+contrastive loss---the Graph-Relevance Contrastive Loss (GRCL)---which
+strictly generalizes binary InfoNCE and recovers it when the targets
+degenerate to $\{0,1\}$. At inference time, the same edge weights form a
+transition matrix used by weighted diffusion or Personalized PageRank to
+smooth any base retriever's scores, with no retraining required.
+Empirically, applying this propagation to the external retrieval-tuned
+MLLM GME-Qwen2-VL-2B~\cite{gme} raises its SPIQA R@10 from $58.3$ to
+$84.4$ ($+26$pp) and almost doubles its MRR ($33.1\!\to\!63.3$), evidence
+that the graph functions as an encoder-agnostic universal prior.
 
 
 \section{Method}
@@ -199,37 +199,34 @@ same encoder trained with binary InfoNCE, and (k=GME) the external
 retrieval-tuned MLLM GME-Qwen2-VL-2B-Instruct~\cite{gme}, zero-shot.
 
 \paragraph{Results.}
-Table~\ref{tab:main} summarizes our findings.
-\textbf{(F1) GRCL outperforms InfoNCE} (rows 1 vs.~2): $+2.7$pp R@10 and
-$+5.4$pp MRR; paired bootstrap on Coverage@10 gives
+Table~\ref{tab:main} summarizes our findings; specific rows are
+referenced below.
+
+GRCL outperforms binary InfoNCE on in-domain SPIQA (rows~1 vs.~2) by
+$+2.7$pp R@10 and $+5.4$pp MRR; paired bootstrap on Coverage@10 gives
 $\Delta\!=\!+0.0255$, $95\%$ CI $[+0.0015,+0.0511]$, $p\!=\!0.042$. The
-relative MRR gain ($+16.5\%$) is $\sim$$5\times$ the relative R@10 gain,
-indicating that graded supervision sharpens top-rank quality.
-\textbf{(F2) The \texttt{refer\_to} edge dominates the graph signal}
-(row~3): restricting the kernel to \texttt{refer\_to} alone yields R@10
-$=\mathbf{90.4}$, the best of all 43 ablation rows. A $\backslash$ref
-macro is a manual evidence annotation by the paper's author, whereas
-\texttt{caption\_of} is a trivial layout co-occurrence. Mixing weak
-edges into the kernel dilutes the strong signal---using all five edges
-loses $3.5$pp R@10 over the \texttt{refer\_to}-only kernel.
-\textbf{(F3) Hyperparameter tuning is a comparable lever} (rows 4--5):
-switching $\text{lr}$ alone gives $+1.7$pp R@10 / $+5.2$pp MRR; the full
-combo reaches R@10 $88.0$ / MRR $42.2$.
-\textbf{(F4) Plug-in propagation is the largest single gain}
-(row~7 vs.~8--12): applying the same schema on top of GME-Qwen2-VL-2B
-raises R@10 from $58.3$ to $84.4$ ($+26$pp) and MRR from $33.1$ to
-$63.3$ ($+30$pp), \emph{without any fine-tuning}. GME$+$propagation
-reaches $96\%$ of our best trained SigLIP's R@10. The pattern matches
-classical label propagation~\cite{labelprop}: smoothing along an
-informative graph closes most of the gap when the base scores are
-noisy. Practically, propagation is a deployable inference-time module
-attachable to commercial embedding APIs, sparing the
-$\sim$$100$~GPU-hour cost of training a per-corpus retriever.
-\textbf{(F5) Three propagation regimes are equivalent on GME}
-(rows~8--12): uniform diffusion, weighted diffusion, and PPR all converge
-to R@10 $83$--$85\%$ and MRR $59$--$63\%$, indicating that propagation
-utility comes from \emph{graph structure} itself rather than from
-modifier sophistication.
+relative MRR gain ($+16.5\%$) is roughly $5\times$ the R@10 gain,
+indicating that graded supervision sharpens top-rank quality. Restricting
+the GRCL kernel to a single edge type sharpens the signal further:
+\texttt{refer\_to}-only edges (row~3) yield R@10 $=\mathbf{90.4}$, the
+best of all 43 ablation rows. A $\backslash$ref macro is a manual
+evidence annotation by the paper's author, whereas \texttt{caption\_of}
+is a trivial layout co-occurrence; mixing weak edges dilutes the strong
+signal and costs $3.5$pp R@10. Hyperparameter tuning is a comparable
+lever (rows~4--5): switching $\text{lr}$ alone gives $+1.7$pp R@10 /
+$+5.2$pp MRR, and the full HP combo reaches R@10 $88.0$ / MRR $42.2$.
+
+The single largest effect is observed not in our trained model but as a
+zero-shot plug-in (row~7 vs.~8--12): applying the same edge schema on
+top of GME-Qwen2-VL-2B raises R@10 from $58.3$ to $84.4$ ($+26$pp) and
+MRR from $33.1$ to $63.3$ ($+30$pp) without any fine-tuning, reaching
+$96\%$ of our best trained SigLIP's R@10. The pattern matches classical
+label propagation~\cite{labelprop}: smoothing along an informative
+graph closes most of the gap when base scores are noisy. The three
+regimes are equivalent on GME (rows~8--12)---uniform diffusion, weighted
+diffusion, and PPR all converge to R@10 $83$--$85\%$ and MRR $59$--$63\%$
+---indicating that propagation utility comes from graph structure itself
+rather than from modifier sophistication.
 
 \begin{table}[t]
 \centering
