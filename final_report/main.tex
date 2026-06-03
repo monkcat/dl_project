@@ -45,7 +45,7 @@
 
 \begin{abstract}
 We propose a \emph{structure-aware} framework for element-level
-multimodal retrieval over academic papers, in which the document's
+multimodal retrieval on academic papers, in which the document's
 typed element graph serves as a single source of truth. The same
 edge-weight schema (i)~defines a graded relevance distribution for a
 listwise contrastive loss (\textbf{GRCL}), strictly generalizing binary
@@ -92,7 +92,7 @@ that the graph functions as an encoder-agnostic universal prior.
 \section{Method}
 
 \paragraph{Element graph schema.}
-Each document becomes a per-document graph $G_d\!=\!(V_d,E_d)$ with six
+Each document is represented as a graph $G_d\!=\!(V_d,E_d)$ with six
 node types (\texttt{text}, \texttt{figure}, \texttt{table},
 \texttt{caption}, \texttt{equation}, \texttt{section\_header}) and five
 typed edges extracted directly from arXiv LaTeX source ($\backslash$caption
@@ -133,7 +133,8 @@ $\gamma\!=\!0.5$:
 g(q,e)\;=\;\max_{\pi:q\to e,\,|\pi|\le 2}\ \prod_{(u,v)\in\pi} w_{uv}\,\gamma^{|\pi|-1},
 \label{eq:kernel}
 \end{equation}
-where each $w_{uv}$ is the BASE schema with target-modifier corrections.
+where each $w_{uv}$ follows the BASE schema with target-modifier
+corrections.
 Intuitively, $g(q,e)$ is close to one when $q$ and $e$ are directly
 bound by a strong edge (e.g., a figure and its caption), shrinks for
 two-hop paths (e.g., a body paragraph reaching a figure through a
@@ -225,10 +226,11 @@ relative MRR gain ($+16.5\%$) is roughly $5\times$ the R@10 gain,
 indicating that graded supervision sharpens top-rank quality. Restricting
 the GRCL kernel to a single edge type sharpens the signal further:
 \texttt{refer\_to}-only edges (row~3) yield R@10 $=\mathbf{90.4}$, the
-best of all 43 ablation rows. A $\backslash$ref macro is a manual
-evidence annotation by the paper's author, whereas \texttt{caption\_of}
-is a trivial layout co-occurrence; mixing weak edges dilutes the strong
-signal and costs $3.5$pp R@10. Hyperparameter tuning is a comparable
+best trained-encoder result in our ablation. A $\backslash$ref macro
+is a manual evidence annotation by the paper's author, whereas
+\texttt{caption\_of} is a trivial layout co-occurrence; mixing weak
+edges dilutes the strong signal and costs $3.3$pp R@10 versus the
+multi-edge GRCL kernel. Hyperparameter tuning is a comparable
 lever (rows~4--5): switching $\text{lr}$ alone gives $+1.7$pp R@10 /
 $+5.2$pp MRR, and the full HP combo reaches R@10 $88.0$ / MRR $42.2$.
 
