@@ -14,6 +14,8 @@
 \usepackage{xcolor}         % colors
 \usepackage{amsmath}        % equations
 \usepackage{graphicx}       % figures
+\usepackage{algorithm}      % algorithm float
+\usepackage{algpseudocode}  % pseudocode
 
 
 
@@ -32,7 +34,7 @@
     20262717\\
     \And
     Minjun Kim \\
-    26262242
+    20262242
 }
 
 
@@ -67,141 +69,167 @@ sophistication, is the source of utility.
 \section{Introduction}
 
 The answer to a query on an academic paper is usually a \emph{set} of related
-elements rather than a single one. For example, \emph{``How does Method~A
-improve over the baseline on the hard split, and how does the appendix justify
-the gap?''} is answered by (i)~Table~1, (ii)~its caption, (iii)~a paragraph in
-Section~4.2 that references the table, and (iv)~an Appendix~B paragraph that
-the body cites. These elements span multiple pages and modalities, yet are
-connected by explicit typed edges (\texttt{caption\_of}, \texttt{refer\_to},
-body--appendix references). Retrieval evidence in academic documents is thus
-intrinsically graph-structured.
+elements rather than a single one: a figure, its caption, the citing
+paragraph, and an appendix reference, linked through typed relations like
+\texttt{caption\_of} and \texttt{refer\_to}. Existing systems do not treat
+this graph as a first-class signal---text-centric RAG drops figures,
+page-level visual RAG~\cite{colpali,visrag} can miss cross-page evidence,
+and element-level retrieval without graph priors ranks each candidate
+independently.
 
-Existing systems do not treat this graph as a first-class signal. Text-centric
-RAG drops figures. Page-level visual RAG \cite{colpali,visrag} can miss
-cross-page evidence. Element-level retrieval without graph priors ranks each
-candidate independently and fails to recover references that bind elements
-together.
-
-We propose using the document's typed element graph as a \emph{single source
-of truth} for retrieval. A single edge-weight schema drives two independent
+We propose using the document's typed element graph as a \emph{single
+source of truth}, with one edge-weight schema driving two independent
 contributions. \textbf{(C1) Graph-Relevance Contrastive Loss (GRCL):} a
 2-hop max-product path kernel defines a graded relevance distribution over
-candidates; a listwise cross-entropy fits the retriever to it. GRCL strictly
-generalizes binary InfoNCE. \textbf{(C2) Inference-time graph propagation as
-a plug-in:} the \emph{same} edge weights construct a transition matrix used
-by weighted diffusion or Personalized PageRank to smooth any base
-retriever's scores; no retraining is required.
-
-Our most striking empirical finding is that applying~(C2) to the external
-retrieval-tuned MLLM GME-Qwen2-VL-2B~\cite{gme} raises its SPIQA R@10 from
-$58.3$ to $84.4$ ($+26$pp) and almost doubles its MRR
-($33.1\!\to\!63.3$): the same schema simultaneously supervises a 200M
-dual-encoder and augments a 2B decoder MLLM at inference time, evidence that
-the graph functions as an \emph{encoder-agnostic universal prior}.
+candidates; a listwise cross-entropy fits the retriever to it. GRCL
+strictly generalizes binary InfoNCE. \textbf{(C2) Plug-in graph
+propagation:} the \emph{same} edge weights construct a transition matrix
+used by weighted diffusion or Personalized PageRank to smooth any base
+retriever's scores; no retraining is required. Empirically, applying~(C2)
+to the external retrieval-tuned MLLM GME-Qwen2-VL-2B~\cite{gme} raises its
+SPIQA R@10 from $58.3$ to $84.4$ ($+26$pp) and almost doubles its MRR
+($33.1\!\to\!63.3$), evidence that the graph functions as an
+\emph{encoder-agnostic universal prior}.
 
 
 \section{Method}
 
 \paragraph{Element graph schema.}
-Each document is a per-document graph $G_d\!=\!(V_d,E_d)$ with six node types
-(\texttt{text}, \texttt{figure}, \texttt{table}, \texttt{caption},
+Each document is a per-document graph $G_d\!=\!(V_d,E_d)$ with six node
+types (\texttt{text}, \texttt{figure}, \texttt{table}, \texttt{caption},
 \texttt{equation}, \texttt{section\_header}) and five edge types. The
 framework's \emph{single source of truth} is the edge-weight schema
-$\text{BASE}\!=\!\{\texttt{caption\_of}\!:\!1.0,\,\texttt{refer\_to}\!:\!0.8,\,
-\texttt{contains}\!:\!0.5,\,\texttt{reading\_next}\!:\!0.3,\,
-\texttt{section\_next}\!:\!0.2\}$. A section-role modifier
-($\text{appendix}\!:\!1.3$, $\text{references}\!:\!0.5$) and a cross-modal
-visual-target modifier ($1.1$ for \texttt{refer\_to} into a figure/table)
-refine the base weights based on the target node.
+$\text{BASE}\!=\!\{\texttt{caption\_of}\!:\!1.0,\,
+\texttt{refer\_to}\!:\!0.8,\,\texttt{contains}\!:\!0.5,\,
+\texttt{reading\_next}\!:\!0.3,\,\texttt{section\_next}\!:\!0.2\}$.
+A section-role modifier (appendix$:\!1.3$, references$:\!0.5$) and a
+cross-modal visual-target modifier ($1.1$ for \texttt{refer\_to} into a
+figure/table) refine the base weights based on the target node.
 
-\paragraph{Encoder and late interaction.}
-We use SigLIPv2-base-patch16-224~\cite{siglip2} with LoRA rank~8 on attention
-projections ($\sim$491k trainable parameters, $0.32\%$ of the base).
-Token-level outputs are projected to $D_\text{proj}\!=\!128$ and
-L2-normalized. The retrieval score uses ColBERT-style MaxSim~\cite{colbert}:
-$\textstyle\mathrm{score}(q,e)=\sum_i\max_j\langle q_i,e_j\rangle$.
+\paragraph{Encoder.}
+SigLIPv2-base-patch16-224~\cite{siglip2} with LoRA rank~8 on attention
+projections ($\sim$491k trainable parameters, $0.32\%$ of the base);
+the pretrained backbone stays frozen. Token-level outputs are projected
+to $D_\text{proj}\!=\!128$ and L2-normalized. The retrieval score uses
+ColBERT-style MaxSim~\cite{colbert}:
+$\mathrm{score}(q,e)=\sum_i\max_j\langle q_i,e_j\rangle$.
 
-\paragraph{Graph-Relevance Contrastive Loss.}
-The graph relevance kernel between an anchor $q$ and a candidate $e$ is the
-max-product path weight up to two hops with hop decay $\gamma\!=\!0.5$:
+\paragraph{Graph-Relevance Contrastive Loss (GRCL).}
+The kernel between anchor $q$ and candidate $e$ is the max-product path
+weight up to two hops with decay $\gamma\!=\!0.5$:
 \begin{equation}
 g(q,e)\;=\;\max_{\pi:q\to e,\,|\pi|\le 2}\ \prod_{(u,v)\in\pi} w_{uv}\,\gamma^{|\pi|-1},
+\label{eq:kernel}
 \end{equation}
-where $w_{uv}$ uses BASE\_EDGE\_WEIGHTS and target-modifier corrections. For a
-candidate pool of $K\!=\!12$ elements (graph 1-hop positives plus same-doc and
-cross-doc negatives), let $r_i\!=\!g(q,e_i)$ and $s_i\!=\!\mathrm{score}(q,e_i)$.
-The GRCL listwise loss is
+where $w_{uv}$ uses BASE and target-modifier corrections. For a candidate
+pool of $K\!=\!12$, let $r_i\!=\!g(q,e_i)$ and $s_i\!=\!\mathrm{score}(q,e_i)$.
+The loss is a soft-target listwise cross-entropy,
 \begin{equation}
-\mathcal{L}_\text{GRCL}(q)\;=\;-\sum_i\frac{r_i}{\sum_j r_j}\,\log\frac{\exp(s_i/\tau)}{\sum_j\exp(s_j/\tau)}.
+\mathcal{L}_\text{GRCL}(q)\;=\;-\sum_{i=1}^{K}\frac{r_i}{\sum_j r_j}\,\log\frac{\exp(s_i/\tau)}{\sum_j\exp(s_j/\tau)}.
+\label{eq:grcl}
 \end{equation}
-When targets degenerate to $\{0,1\}$ this recovers binary InfoNCE---GRCL is a
-strict graded relaxation.
+When the targets degenerate to $\{0,1\}$ this recovers binary InfoNCE;
+GRCL is therefore a strict graded relaxation. Algorithm~\ref{alg:grcl}
+shows the full training step.
+
+\begin{algorithm}[t]
+\caption{GRCL training step (one anchor)}
+\label{alg:grcl}
+\begin{algorithmic}[1]
+\Require document $d$ with graph $G_d$, encoder $f_\theta$, temperature $\tau$, decay $\gamma$
+\State sample anchor $q$ from $\{\texttt{caption\_of},\texttt{refer\_to},\texttt{nl\_qa}\}$ with prob.\ $1/3$ each
+\State build pool $C\!=\!\{e_1,\ldots,e_{12}\}$: 1-hop positives $\cup$ same-doc negatives $\cup$ cross-doc negatives
+\For{$i = 1,\ldots,K$}
+  \State $r_i \gets g(q, e_i)$  \Comment{eq.~(\ref{eq:kernel}); 2-hop max-product BFS on $G_d$}
+  \State $s_i \gets \mathrm{MaxSim}(f_\theta(q),\, f_\theta(e_i))$  \Comment{ColBERT-style late interaction}
+\EndFor
+\State $\mathcal{L} \gets -\sum_i (r_i / \textstyle\sum_j r_j)\log\!\bigl[\,\mathrm{softmax}(s/\tau)\bigr]_i$  \Comment{eq.~(\ref{eq:grcl})}
+\State update $\theta$ (LoRA adapter $+$ projection head) via AdamW
+\end{algorithmic}
+\end{algorithm}
 
 \paragraph{Inference-time graph propagation.}
-The base retriever's top-50 scores are propagated on the same per-document
-graph. The transition matrix $P$ is the row-normalized weight matrix built from
-the \emph{identical} schema above. We consider three regimes: (A) \emph{uniform
-diffusion} with all edge weights set to one (structure-only), (B) \emph{weighted
-diffusion} $s^{(t+1)}\!=\!(1\!-\!\alpha)s^{(t)}+\alpha P^\top s^{(t)}$, and
-(C) \emph{Personalized PageRank}
-$s^{(t+1)}\!=\!\alpha q+(1\!-\!\alpha)P^\top s^{(t)}$ with teleport vector
-$q\!=\!s^{(0)}$~\cite{ppr}. All three are eval-only and require no parameter updates.
+Given any base retriever's scores over $V_d$, we propagate on $G_d$ to
+re-rank the top-$N\!=\!50$ candidates. The transition matrix $P$ is the
+row-normalized weight matrix from the \emph{same} schema; $P$ is built
+once per document at eval time. We support three regimes (Algorithm~\ref{alg:prop}):
+(A)~\emph{uniform diffusion} with all edge weights set to one
+(structure-only), (B)~\emph{weighted diffusion}, and (C)~\emph{Personalized
+PageRank} with teleport vector $q\!=\!s^{(0)}$~\cite{ppr}. All three are
+eval-only and apply to any base retriever without parameter updates.
+
+\begin{algorithm}[t]
+\caption{Inference-time graph propagation (per query)}
+\label{alg:prop}
+\begin{algorithmic}[1]
+\Require base scores $s\in\mathbb{R}^{|V_d|}$, graph $G_d$, regime $\in\{\text{uniform},\text{weighted},\text{ppr}\}$, $\alpha$, $T$
+\State $\mathcal{T} \gets$ top-50 indices of $s$;\quad restrict $G_d$ and $s$ to $\mathcal{T}$
+\State build $P\!\in\!\mathbb{R}^{50\times 50}$: row-normalize edge weights (or all-ones if uniform)
+\State $s^{(0)} \gets s$;\quad $q \gets s$ \Comment{$q$: PPR teleport}
+\For{$t = 1,\ldots,T$}
+  \If{regime $\in \{\text{uniform},\text{weighted}\}$}
+    \State $s^{(t)} \gets (1\!-\!\alpha)\,s^{(t-1)} + \alpha\,P^\top s^{(t-1)}$  \Comment{diffusion}
+  \Else
+    \State $s^{(t)} \gets \alpha\,q + (1\!-\!\alpha)\,P^\top s^{(t-1)}$  \Comment{PPR; iterate until $\|s^{(t)}\!-\!s^{(t-1)}\|_\infty<10^{-4}$ or $T_\text{max}\!=\!30$}
+  \EndIf
+\EndFor
+\State \Return $\mathcal{T}$ re-ranked by $s^{(T)}$
+\end{algorithmic}
+\end{algorithm}
 
 
 \section{Experiment}
 
-\paragraph{Dataset.}
-SPIQA~\cite{spiqa} is a figure-grounded QA benchmark over arXiv CS papers. We
-train on the \texttt{train\_val} split (25{,}459 papers, $\sim$250k
-caption--figure pairs) and evaluate on \texttt{test-A} (118 papers, 999
-queries). Graphs are extracted directly from arXiv LaTeX source
-($\backslash$section, $\backslash$ref) and the dataset's \texttt{all\_figures}
-JSON; no PDF parsing is required.
-
-\paragraph{Training and evaluation.}
-AdamW, 8{,}000 steps, batch of 16 anchors $\times$ 12 candidates, $\gamma\!=\!0.5$.
-We compare two settings: default $\text{lr}\!=\!3$e-5, $\tau\!=\!0.07$; tuned
-$\text{lr}\!=\!1$e-4, $\tau\!=\!0.10$. Anchors are sampled $1/3$ each from
-\texttt{caption\_of}, \texttt{refer\_to}, and natural-language QA. One row
-trains in $\sim$5 wall-hours on a single A100~80GB. Evaluation uses a
-per-document candidate pool, reporting R@5, R@10, and MRR. Significance is
-assessed with paired bootstrap (1{,}000 resamples, 95\% CI). Baselines are
-(a)~the same encoder trained with binary InfoNCE, and (k=GME) the external
-2B retrieval-tuned MLLM GME-Qwen2-VL-2B-Instruct~\cite{gme}, zero-shot.
+\paragraph{Setup.}
+SPIQA~\cite{spiqa} is a figure-grounded QA benchmark over arXiv CS papers.
+We train on the \texttt{train\_val} split (25{,}459 papers, $\sim$250k
+caption--figure pairs) and evaluate on \texttt{test-A} (118 papers,
+999 queries). Graphs are extracted directly from arXiv LaTeX source
+($\backslash$section, $\backslash$ref) and the dataset's
+\texttt{all\_figures} JSON, so no PDF parsing is needed. Training uses
+AdamW for $8{,}000$ steps with $16$ anchors $\times\,12$ candidates per
+step; the default setting is $\text{lr}\!=\!3$e-5, $\tau\!=\!0.07$,
+$\gamma\!=\!0.5$, and a tuned setting is $\text{lr}\!=\!1$e-4, $\tau\!=\!0.10$.
+One row takes $\sim$5~h on a single A100 80GB. Evaluation uses a
+per-document candidate pool, reporting R@5, R@10, and MRR; significance is
+assessed by paired bootstrap ($1{,}000$ resamples). Baselines are (a) the
+same encoder trained with binary InfoNCE, and (k=GME) the external
+retrieval-tuned MLLM GME-Qwen2-VL-2B-Instruct~\cite{gme}, zero-shot.
 
 \paragraph{Results.}
 Table~\ref{tab:main} summarizes our findings.
-\textbf{(F1) GRCL outperforms InfoNCE on in-domain SPIQA} (rows 1 vs.~2):
-$+2.7$pp R@10 and $+5.4$pp MRR. Paired bootstrap on Coverage@10 gives
-$\Delta\!=\!+0.0255$, 95\% CI $[+0.0015,+0.0511]$, $p\!=\!0.042$. The
-relative MRR gain ($+16.5\%$) is about $5\times$ the relative R@10 gain,
-indicating that graded supervision sharpens \emph{top-rank quality}.
+\textbf{(F1) GRCL outperforms InfoNCE} (rows 1 vs.~2): $+2.7$pp R@10 and
+$+5.4$pp MRR; paired bootstrap on Coverage@10 gives
+$\Delta\!=\!+0.0255$, $95\%$ CI $[+0.0015,+0.0511]$, $p\!=\!0.042$. The
+relative MRR gain ($+16.5\%$) is $\sim$$5\times$ the relative R@10 gain,
+indicating that graded supervision sharpens top-rank quality.
 \textbf{(F2) The \texttt{refer\_to} edge dominates the graph signal}
 (row~3): restricting the kernel to \texttt{refer\_to} alone yields R@10
-$=\mathbf{90.4}$, the best of all 43 rows, $+3.5$pp over using all five edges
-equally. Explicit body--figure references carry the strongest training
-signal; trivial adjacencies (\texttt{caption\_of}) and structural containment
-(\texttt{contains}) are weaker.
+$=\mathbf{90.4}$, the best of all 43 ablation rows. Explicit body--figure
+references carry the strongest training signal; trivial adjacencies
+(\texttt{caption\_of}) and structural containment (\texttt{contains}) are
+weaker.
 \textbf{(F3) Hyperparameter tuning is a comparable lever} (rows 4--5):
 switching $\text{lr}$ alone gives $+1.7$pp R@10 / $+5.2$pp MRR; the full
-combo reaches R@10~$88.0$ / MRR~$42.2$.
-\textbf{(F4) Graph propagation plugs into external MLLMs for the largest
-single gain} (row~7 vs.~8--12): applying the same schema on top of
-GME-Qwen2-VL-2B raises R@10 from $58.3$ to $84.4$ ($+26$pp) and MRR from
-$33.1$ to $63.3$ ($+30$pp). Without fine-tuning, GME$+$propagation reaches
-$96\%$ of our best trained SigLIP's R@10---demonstrating that the graph
-schema is encoder-agnostic and that propagation is a deployable plug-in.
+combo reaches R@10 $88.0$ / MRR $42.2$.
+\textbf{(F4) Plug-in propagation is the largest single gain}
+(row~7 vs.~8--12): applying the same schema on top of GME-Qwen2-VL-2B
+raises R@10 from $58.3$ to $84.4$ ($+26$pp) and MRR from $33.1$ to
+$63.3$ ($+30$pp), \emph{without any fine-tuning}. GME$+$propagation
+reaches $96\%$ of our best trained SigLIP's R@10---demonstrating that the
+graph schema is encoder-agnostic.
 \textbf{(F5) Three propagation regimes are equivalent on GME}
 (rows~8--12): uniform diffusion, weighted diffusion, and PPR all converge
 to R@10 $83$--$85\%$ and MRR $59$--$63\%$, indicating that propagation
-utility comes from \emph{graph structure} rather than from modifier
-sophistication---a useful negative result for system designers.
+utility comes from \emph{graph structure} itself rather than from
+modifier sophistication.
 
 \begin{table}[t]
 \centering
 \small
-\caption{SPIQA test-A retrieval. Bold marks the column best or the headline
-finding; $\Delta$ values are versus the in-group baseline (row~1 or row~7).}
+\caption{SPIQA test-A retrieval. Bold marks the column best or the
+headline finding; $\Delta$ values are versus the in-group baseline (row~1
+for trained encoders; row~7 for GME).}
 \label{tab:main}
 \begin{tabular}{lccccc}
 \toprule
@@ -229,24 +257,15 @@ Setup & R@5 & R@10 & MRR & $\Delta$R@10 & $\Delta$MRR \\
 
 \section{Conclusion}
 
-A typed document element graph can simultaneously serve as graded supervision
-for retriever training and as an inference-time prior for any base retriever,
-both driven by a single edge-weight schema. On SPIQA, GRCL gives a
-statistically significant R@10/MRR gain over binary InfoNCE; restricting the
-kernel to \texttt{refer\_to} edges alone delivers the best in-domain trained
-setting; and the schema's largest impact is observed not in our own model but
-as a zero-shot plug-in atop the external GME-Qwen2-VL-2B MLLM, where R@10
-rises by $+26$pp and MRR by $+30$pp. The equivalence of three propagation
-regimes indicates that the source of utility is the \emph{graph structure}
-rather than the modifier design.
-
-\paragraph{Limitations and future work.}
-Our evaluation focuses on a single in-domain benchmark (SPIQA test-A);
-generalization to cross-domain academic corpora remains untested and is a
-clear next step. Natural follow-ups are to (i) extend plug-in propagation to
-other retrieval-tuned MLLMs (NV-Embed, jina-v4) as a general inference-time
-module and (ii) expose edge-type weights as learnable parameters, so that
-the dominance of \texttt{refer\_to} can be discovered rather than specified.
+A typed document element graph can simultaneously serve as graded
+supervision for retriever training and as an inference-time prior for any
+base retriever, driven by a single edge-weight schema. On SPIQA, GRCL
+gives a statistically significant gain over binary InfoNCE,
+\texttt{refer\_to}-only edges yield the best trained R@10 ($90.4$), and
+plug-in propagation atop the external GME-Qwen2-VL-2B MLLM produces our
+largest single effect ($+26$pp R@10, $+30$pp MRR). Limitations: evaluation
+is restricted to one in-domain benchmark; cross-domain generalization and
+learnable edge-type weights are clear next steps.
 
 
 \newpage
