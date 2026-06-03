@@ -150,34 +150,21 @@ shortcuts). Algorithm~\ref{alg:grcl} shows the full training step.
 \end{algorithm}
 
 \paragraph{Inference-time graph propagation.}
-We propagate base scores on $G_d$ to re-rank the top-$N\!=\!50$
-candidates ($50\!\times\!50$ matrix-vector iteration; $<\!1$\,ms per
-query). The transition matrix $P$ row-normalizes the \emph{same}
-weight schema as the training kernel. We support three regimes
-(Algorithm~\ref{alg:prop}): (A)~\emph{uniform diffusion} with all edge
-weights set to one (structure-only), (B)~\emph{weighted diffusion}, and
-(C)~\emph{Personalized PageRank} with teleport vector
-$q\!=\!s^{(0)}$~\cite{ppr}. All three are eval-only and apply to any
-base retriever without parameter updates.
-
-\begin{algorithm}[t]
-\caption{Inference-time graph propagation (per query)}
-\label{alg:prop}
-\begin{algorithmic}[1]
-\Require base scores $s\in\mathbb{R}^{|V_d|}$, graph $G_d$, regime $\in\{\text{uniform},\text{weighted},\text{ppr}\}$, $\alpha$, $T$
-\State $\mathcal{T} \gets$ top-50 indices of $s$;\quad restrict $G_d$ and $s$ to $\mathcal{T}$
-\State build $P\!\in\!\mathbb{R}^{50\times 50}$: row-normalize edge weights (or all-ones if uniform)
-\State $s^{(0)} \gets s$;\quad $q \gets s$ \Comment{$q$: PPR teleport}
-\For{$t = 1,\ldots,T$}
-  \If{regime $\in \{\text{uniform},\text{weighted}\}$}
-    \State $s^{(t)} \gets (1\!-\!\alpha)\,s^{(t-1)} + \alpha\,P^\top s^{(t-1)}$  \Comment{diffusion}
-  \Else
-    \State $s^{(t)} \gets \alpha\,q + (1\!-\!\alpha)\,P^\top s^{(t-1)}$  \Comment{PPR; iterate until $\|s^{(t)}\!-\!s^{(t-1)}\|_\infty<10^{-4}$ or $T_\text{max}\!=\!30$}
-  \EndIf
-\EndFor
-\State \Return $\mathcal{T}$ re-ranked by $s^{(T)}$
-\end{algorithmic}
-\end{algorithm}
+Given any base retriever's scores $s\!\in\!\mathbb{R}^{|V_d|}$, we
+truncate to the top-$N\!=\!50$ candidates, build a $50\!\times\!50$
+transition matrix $P$ by row-normalizing the \emph{same} edge-weight
+schema as the training kernel, and iteratively re-rank with one of
+three regimes: \emph{uniform diffusion} sets all edge weights to one
+(structure-only); \emph{weighted diffusion} keeps the full BASE
+weights; both update as
+$s^{(t+1)}\!=\!(1\!-\!\alpha)\,s^{(t)}+\alpha\,P^\top s^{(t)}$ for $T$
+steps. \emph{Personalized PageRank} re-injects the original scores
+as a teleport,
+$s^{(t+1)}\!=\!\alpha\,q+(1\!-\!\alpha)\,P^\top s^{(t)}$ with
+$q\!=\!s^{(0)}$~\cite{ppr}, iterating until
+$\|s^{(t)}\!-\!s^{(t-1)}\|_\infty\!<\!10^{-4}$. One iteration is $<\!1$\,ms,
+and all three regimes are eval-only and apply to any base retriever
+without parameter updates.
 
 
 \section{Experiment}
