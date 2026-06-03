@@ -54,8 +54,7 @@ inference-time score propagation. On SPIQA test-A, GRCL improves R@10
 by $+2.7$pp and MRR by $+5.4$pp ($p\!=\!0.042$). Most strikingly,
 applying the same propagation to the external GME-Qwen2-VL-2B MLLM
 raises its R@10 from $58.3$ to $\mathbf{84.4}$ ($+26$pp) and MRR from
-$33.1$ to $\mathbf{63.3}$ ($+30$pp) \emph{without any fine-tuning}---the
-study's largest single effect.
+$33.1$ to $\mathbf{63.3}$ ($+30$pp) \emph{without any fine-tuning}.
 \end{abstract}
 
 
@@ -211,14 +210,14 @@ step; the default setting is $\text{lr}\!=\!3$e-5, $\tau\!=\!0.07$,
 $\gamma\!=\!0.5$, and a tuned setting is $\text{lr}\!=\!1$e-4, $\tau\!=\!0.10$.
 One row takes $\sim$5~h on a single A100 80GB. Evaluation uses a
 per-document candidate pool, reporting R@5, R@10, and MRR; significance is
-assessed by paired bootstrap ($1{,}000$ resamples). Baselines are (a) the
-same encoder trained with binary InfoNCE, and (k=GME) the external
-retrieval-tuned MLLM GME-Qwen2-VL-2B-Instruct~\cite{gme}, zero-shot.
+assessed by paired bootstrap ($1{,}000$ resamples). We compare against
+two baselines: the same encoder trained with binary InfoNCE, and the
+external retrieval-tuned MLLM GME-Qwen2-VL-2B-Instruct~\cite{gme} used
+zero-shot.
 
 \paragraph{Results.}
 Table~\ref{tab:main} summarizes our findings; specific rows are
 referenced below.
-
 GRCL outperforms binary InfoNCE on in-domain SPIQA (rows~1 vs.~2) by
 $+2.7$pp R@10 and $+5.4$pp MRR; paired bootstrap on Coverage@10 gives
 $\Delta\!=\!+0.0255$, $95\%$ CI $[+0.0015,+0.0511]$, $p\!=\!0.042$. The
@@ -257,8 +256,8 @@ for trained encoders; row~7 for GME).}
 Setup & R@5 & R@10 & MRR & $\Delta$R@10 & $\Delta$MRR \\
 \midrule
 \multicolumn{6}{l}{\emph{Trained dual-encoder: SigLIPv2-base + LoRA, GRCL unless noted}} \\
-1.\ (a) InfoNCE baseline & --- & 84.4 & 32.8 & --- & --- \\
-2.\ (e) GRCL ($p\!=\!0.042$ vs.\ 1) & --- & 87.1 & 38.2 & $+2.7$ & $+5.4$ \\
+1.\ InfoNCE baseline & --- & 84.4 & 32.8 & --- & --- \\
+2.\ GRCL ($p\!=\!0.042$ vs.\ 1) & --- & 87.1 & 38.2 & $+2.7$ & $+5.4$ \\
 3.\ \quad+ \texttt{refer\_to}-only edges & --- & \textbf{90.4} & 41.9 & $\mathbf{+6.0}$ & $+9.1$ \\
 4.\ \quad+ $\text{lr}\!=\!1$e-4 & --- & 88.6 & \textbf{42.6} & $+4.2$ & $\mathbf{+9.8}$ \\
 5.\ \quad+ best HP combo (lr$+\tau+\lambda$) & --- & 88.0 & 42.2 & $+3.6$ & $+9.4$ \\
