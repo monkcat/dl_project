@@ -231,8 +231,9 @@ is a manual evidence annotation by the paper's author, whereas
 \texttt{caption\_of} is a trivial layout co-occurrence; mixing weak
 edges dilutes the strong signal and costs $3.3$pp R@10 versus the
 multi-edge GRCL kernel. Hyperparameter tuning is a comparable
-lever (rows~4--5): switching $\text{lr}$ alone gives $+1.7$pp R@10 /
-$+5.2$pp MRR, and the full HP combo reaches R@10 $88.0$ / MRR $42.2$.
+lever (rows~4--5): raising $\text{lr}$ to $1$e-4 reaches R@10 $88.6$ and
+MRR $42.6$ (row~4), and the full HP combo of $\text{lr}\!+\!\tau\!+\!\lambda$
+reaches R@10 $88.0$ and MRR $42.2$ (row~5).
 
 The single largest effect is observed not in our trained model but as a
 zero-shot plug-in (row~7 vs.~8--12): applying the same edge schema on
