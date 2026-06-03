@@ -87,18 +87,26 @@ that the graph functions as an encoder-agnostic universal prior.
 \section{Method}
 
 \paragraph{Element graph schema.}
-Each document is a per-document graph $G_d\!=\!(V_d,E_d)$ with six node
-types (\texttt{text}, \texttt{figure}, \texttt{table}, \texttt{caption},
-\texttt{equation}, \texttt{section\_header}) and five typed edges
-extracted from arXiv LaTeX source ($\backslash$caption proximity,
-$\backslash$ref macros, $\backslash$section nesting, and sequential
-order). The framework's \emph{single source of truth} is the edge-weight
-schema $\text{BASE}\!=\!\{\texttt{caption\_of}\!:\!1.0,\,
+Each document becomes a per-document graph $G_d\!=\!(V_d,E_d)$ with six
+node types (\texttt{text}, \texttt{figure}, \texttt{table},
+\texttt{caption}, \texttt{equation}, \texttt{section\_header}) and five
+typed edges extracted directly from arXiv LaTeX source ($\backslash$caption
+proximity, $\backslash$ref macros, $\backslash$section nesting, and
+sequential reading order). The framework's \emph{single source of truth}
+is one edge-weight schema:
+$\text{BASE}\!=\!\{\texttt{caption\_of}\!:\!1.0,\,
 \texttt{refer\_to}\!:\!0.8,\,\texttt{contains}\!:\!0.5,\,
-\texttt{reading\_next}\!:\!0.3,\,\texttt{section\_next}\!:\!0.2\}$. A
-section-role modifier (appendix$:\!1.3$, references$:\!0.5$) and a
-cross-modal modifier ($1.1$ for \texttt{refer\_to} into a figure/table)
-refine the base weights based on the target node.
+\texttt{reading\_next}\!:\!0.3,\,\texttt{section\_next}\!:\!0.2\}$.
+Intuitively, a caption that physically accompanies a figure carries the
+tightest binding (weight $1.0$); an explicit paragraph reference
+($\backslash$ref) is slightly weaker ($0.8$); structural co-occurrence
+within a section, or mere reading adjacency, are weaker still. Two
+multiplicative modifiers refine these weights based on the target node:
+a section-role modifier (appendix$:\!1.3$, references$:\!0.5$)
+emphasizes appendix evidence and de-emphasizes citation lists, and a
+cross-modal modifier ($1.1$ for \texttt{refer\_to} into a
+figure/table) slightly boosts paragraph-to-visual references over
+paragraph-to-paragraph ones.
 
 \paragraph{Encoder.}
 SigLIPv2-base-patch16-224~\cite{siglip2} with LoRA rank~8 on attention
@@ -111,27 +119,39 @@ $\mathrm{score}(q,e)\!=\!\sum_i\max_j\langle q_i,e_j\rangle$, which lets
 a salient query phrase match a single discriminative figure patch.
 
 \paragraph{Graph-Relevance Contrastive Loss (GRCL).}
-The kernel between anchor $q$ and candidate $e$ is the max-product path
-weight up to two hops with decay $\gamma\!=\!0.5$:
+The kernel between an anchor $q$ and a candidate $e$ is the max-product
+weight along the best path of at most two hops, with a per-hop decay
+$\gamma\!=\!0.5$:
 \begin{equation}
 g(q,e)\;=\;\max_{\pi:q\to e,\,|\pi|\le 2}\ \prod_{(u,v)\in\pi} w_{uv}\,\gamma^{|\pi|-1},
 \label{eq:kernel}
 \end{equation}
-where $w_{uv}$ uses BASE and target-modifier corrections. For a candidate
-pool of $K\!=\!12$, let $r_i\!=\!g(q,e_i)$ and $s_i\!=\!\mathrm{score}(q,e_i)$.
-The loss is a soft-target listwise cross-entropy,
+where each $w_{uv}$ is the BASE schema with target-modifier corrections.
+Intuitively, $g(q,e)$ is close to one when $q$ and $e$ are directly
+bound by a strong edge (e.g., a figure and its caption), shrinks for
+two-hop paths (e.g., a body paragraph reaching a figure through a
+referenced caption), and is zero when no short path exists.
+
+For a candidate pool $\{e_1,\ldots,e_K\}$ of size $K\!=\!12$, let
+$r_i\!=\!g(q,e_i)$ and $s_i\!=\!\mathrm{score}(q,e_i)$. The loss is a
+soft-target listwise cross-entropy,
 \begin{equation}
 \mathcal{L}_\text{GRCL}(q)\;=\;-\sum_{i=1}^{K}\frac{r_i}{\sum_j r_j}\,\log\frac{\exp(s_i/\tau)}{\sum_j\exp(s_j/\tau)}.
 \label{eq:grcl}
 \end{equation}
-When the targets degenerate to $\{0,1\}$ this recovers binary InfoNCE,
-so GRCL is a strict graded relaxation. The anchor is sampled $1/3$ each
-from \texttt{caption\_of} pairs (visual anchor), \texttt{refer\_to}
-pairs (body anchor), and natural-language QA queries, covering all
-three query distributions seen at evaluation. The $K\!=\!12$ candidate
-pool mixes graph 1-hop positives, same-document negatives (hard
-context), and cross-document negatives (preventing within-document
-shortcuts). Algorithm~\ref{alg:grcl} shows the full training step.
+The retriever is therefore asked to match a graded distribution rather
+than to pick one positive among uniform negatives---when the targets
+degenerate to $\{0,1\}$ this recovers binary InfoNCE, so GRCL is a
+strict graded relaxation.
+Each anchor is sampled $1/3$ each from \texttt{caption\_of} pairs
+(visual anchor), \texttt{refer\_to} pairs (body anchor), and
+natural-language QA queries, so a single retriever learns to handle the
+three query distributions seen at evaluation. The pool mixes graph
+1-hop positives, same-document negatives (hard context that shares
+section but lies outside the relevance subgraph), and cross-document
+negatives (drawn from other papers in the batch to prevent
+within-document shortcuts). Algorithm~\ref{alg:grcl} shows the full
+training step.
 
 \begin{algorithm}[t]
 \caption{GRCL training step (one anchor)}
@@ -150,21 +170,23 @@ shortcuts). Algorithm~\ref{alg:grcl} shows the full training step.
 \end{algorithm}
 
 \paragraph{Inference-time graph propagation.}
-Given any base retriever's scores $s\!\in\!\mathbb{R}^{|V_d|}$, we
-truncate to the top-$N\!=\!50$ candidates, build a $50\!\times\!50$
-transition matrix $P$ by row-normalizing the \emph{same} edge-weight
-schema as the training kernel, and iteratively re-rank with one of
-three regimes: \emph{uniform diffusion} sets all edge weights to one
-(structure-only); \emph{weighted diffusion} keeps the full BASE
-weights; both update as
+The intuition is to use the same graph as a smoothing prior: if a
+candidate is connected to other high-scoring candidates by strong typed
+edges, its own score should rise. Given any base retriever's scores
+$s\!\in\!\mathbb{R}^{|V_d|}$, we truncate to the top-$N\!=\!50$
+candidates and build a $50\!\times\!50$ transition matrix $P$ by
+row-normalizing the \emph{same} edge-weight schema as the training
+kernel. We iteratively re-rank with one of three regimes: \emph{uniform
+diffusion} sets all edge weights to one (structure-only ablation);
+\emph{weighted diffusion} keeps the full BASE weights; both update as
 $s^{(t+1)}\!=\!(1\!-\!\alpha)\,s^{(t)}+\alpha\,P^\top s^{(t)}$ for $T$
-steps. \emph{Personalized PageRank} re-injects the original scores
-as a teleport,
-$s^{(t+1)}\!=\!\alpha\,q+(1\!-\!\alpha)\,P^\top s^{(t)}$ with
+steps. \emph{Personalized PageRank} re-injects the original scores as a
+teleport, $s^{(t+1)}\!=\!\alpha\,q+(1\!-\!\alpha)\,P^\top s^{(t)}$ with
 $q\!=\!s^{(0)}$~\cite{ppr}, iterating until
-$\|s^{(t)}\!-\!s^{(t-1)}\|_\infty\!<\!10^{-4}$. One iteration is $<\!1$\,ms,
-and all three regimes are eval-only and apply to any base retriever
-without parameter updates.
+$\|s^{(t)}\!-\!s^{(t-1)}\|_\infty\!<\!10^{-4}$. One iteration is
+$<\!1$\,ms, and all three regimes are eval-only and apply to any base
+retriever without parameter updates---in particular, an external MLLM
+that has no notion of our schema.
 
 
 \section{Experiment}
