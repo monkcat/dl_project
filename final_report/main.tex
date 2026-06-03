@@ -190,8 +190,7 @@ teleport, $s^{(t+1)}\!=\!\alpha\,q+(1\!-\!\alpha)\,P^\top s^{(t)}$ with
 $q\!=\!s^{(0)}$~\cite{ppr}, iterating until
 $\|s^{(t)}\!-\!s^{(t-1)}\|_\infty\!<\!10^{-4}$. One iteration is
 $<\!1$\,ms, and all three regimes are eval-only and apply to any base
-retriever without parameter updates---in particular, an external MLLM
-that has no notion of our schema.
+retriever without parameter updates.
 
 
 \section{Experiment}
@@ -236,12 +235,10 @@ The single largest effect is observed not in our trained model but as a
 zero-shot plug-in (row~7 vs.~8--12): applying the same edge schema on
 top of GME-Qwen2-VL-2B raises R@10 from $58.3$ to $84.4$ ($+26$pp) and
 MRR from $33.1$ to $63.3$ ($+30$pp) without any fine-tuning, reaching
-$96\%$ of our best trained SigLIP's R@10. The pattern matches classical
-label propagation~\cite{labelprop}: smoothing along an informative
-graph closes most of the gap when base scores are noisy. The three
-regimes are equivalent on GME (rows~8--12)---uniform diffusion, weighted
-diffusion, and PPR all converge to R@10 $83$--$85\%$ and MRR $59$--$63\%$
----indicating that propagation utility comes from graph structure itself
+$96\%$ of our best trained SigLIP's R@10. The three regimes are
+equivalent on GME (rows~8--12)---uniform diffusion, weighted diffusion,
+and PPR all converge to R@10 $83$--$85\%$ and MRR $59$--$63\%$---
+indicating that propagation utility comes from graph structure itself
 rather than from modifier sophistication.
 
 \begin{table}[t]
